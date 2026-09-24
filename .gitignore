@@ -13,6 +13,7 @@ staticfiles/
 # Tailwind / Node
 node_modules/
 theme/static_src/node_modules/
+theme/static/css/dist/
 *.log
 
 # Editor

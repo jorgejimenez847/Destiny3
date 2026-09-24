@@ -25,9 +25,13 @@ INSTALLED_APPS = [
     "usuarios",
     "servicios",
 
-    # Nota: cuando corran "python manage.py tailwind init",
-    # se agregará aquí la app del tema (ej. "theme").
+    # Tema de Tailwind
+    "theme",
 ]
+
+# Recarga automática del navegador, solo en desarrollo
+if DEBUG:
+    INSTALLED_APPS += ["django_browser_reload"]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -38,6 +42,9 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+
+if DEBUG:
+    MIDDLEWARE += ["django_browser_reload.middleware.BrowserReloadMiddleware"]
 
 ROOT_URLCONF = "config.urls"
 
@@ -91,7 +98,7 @@ LOGIN_REDIRECT_URL = "usuarios:redirigir_por_rol"
 LOGOUT_REDIRECT_URL = "usuarios:login"
 
 # --- Tailwind ---
-TAILWIND_APP_NAME = "theme"  # se crea con "python manage.py tailwind init"
+TAILWIND_APP_NAME = "theme"
 INTERNAL_IPS = ["127.0.0.1"]
 
 LANGUAGE_CODE = "es"
