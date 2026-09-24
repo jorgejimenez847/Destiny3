@@ -1,0 +1,18 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16
+    container_name: barberia_db
+    restart: always
+    environment:
+      POSTGRES_DB: barberia_db
+      POSTGRES_USER: barberia_user
+      POSTGRES_PASSWORD: barberia_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
