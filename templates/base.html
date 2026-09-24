@@ -8,11 +8,39 @@
   {% tailwind_css %}
 </head>
 <body class="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col">
+
   <header class="border-b border-zinc-800">
     <nav class="max-w-6xl mx-auto flex items-center justify-between px-4 py-4">
       <a href="{% url 'home' %}" class="text-xl font-bold tracking-wide">✂️ Barbería</a>
+      <div class="flex items-center gap-4 text-sm">
+        {% if user.is_authenticated %}
+          <span class="text-zinc-400">Hola, {{ user.first_name|default:user.username }}</span>
+          <form method="post" action="{% url 'usuarios:logout' %}">
+            {% csrf_token %}
+            <button class="rounded-lg border border-zinc-700 px-3 py-1.5 hover:bg-zinc-800">
+              Cerrar sesión
+            </button>
+          </form>
+        {% else %}
+          <a href="{% url 'usuarios:login' %}" class="hover:text-amber-400">Iniciar sesión</a>
+          <a href="{% url 'usuarios:registro' %}"
+             class="rounded-lg bg-amber-500 px-3 py-1.5 font-semibold text-zinc-950 hover:bg-amber-400">
+            Registrarse
+          </a>
+        {% endif %}
+      </div>
     </nav>
   </header>
+
+  {% if messages %}
+    <div class="max-w-6xl mx-auto w-full px-4 mt-4 space-y-2">
+      {% for message in messages %}
+        <div class="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
+          {{ message }}
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
 
   <main class="flex-1 max-w-6xl w-full mx-auto px-4 py-8">
     {% block content %}{% endblock %}
