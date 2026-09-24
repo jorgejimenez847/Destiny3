@@ -10,6 +10,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("", TemplateView.as_view(template_name="home.html"), name="home"),
     path("cuentas/", include("usuarios.urls")),
+    path("servicios/", include("servicios.urls")),
 ]
 
 # Recarga automática del navegador (solo desarrollo)

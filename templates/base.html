@@ -11,7 +11,10 @@
 
   <header class="border-b border-zinc-800">
     <nav class="max-w-6xl mx-auto flex items-center justify-between px-4 py-4">
-      <a href="{% url 'home' %}" class="text-xl font-bold tracking-wide">✂️ Barbería</a>
+      <div class="flex items-center gap-6">
+        <a href="{% url 'home' %}" class="text-xl font-bold tracking-wide">✂️ Barbería</a>
+        <a href="{% url 'servicios:lista' %}" class="text-sm text-zinc-300 hover:text-amber-400">Servicios</a>
+      </div>
       <div class="flex items-center gap-4 text-sm">
         {% if user.is_authenticated %}
           <span class="text-zinc-400">Hola, {{ user.first_name|default:user.username }}</span>

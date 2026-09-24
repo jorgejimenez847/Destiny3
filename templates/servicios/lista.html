@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Servicios{% endblock %}
+{% block content %}
+<h1 class="text-3xl font-bold">Nuestros servicios</h1>
+<p class="mt-2 text-zinc-400">Elige el servicio que necesitas.</p>
+
+<div class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+  {% for s in servicios %}
+    <div class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+      <h2 class="text-xl font-bold">{{ s.nombre }}</h2>
+      {% if s.descripcion %}
+        <p class="mt-1 text-sm text-zinc-400">{{ s.descripcion }}</p>
+      {% endif %}
+      <div class="mt-4 flex items-center justify-between text-sm">
+        <span class="text-zinc-400">{{ s.duracion_minutos }} min</span>
+        <span class="text-lg font-semibold text-amber-400">${{ s.precio }}</span>
+      </div>
+    </div>
+  {% empty %}
+    <p class="text-zinc-400">Aún no hay servicios disponibles.</p>
+  {% endfor %}
+</div>
+{% endblock %}
