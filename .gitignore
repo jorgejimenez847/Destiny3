@@ -1,0 +1,21 @@
+# Entorno
+.env
+venv/
+env/
+__pycache__/
+*.pyc
+
+# Django
+db.sqlite3
+media/
+staticfiles/
+
+# Tailwind / Node
+node_modules/
+theme/static_src/node_modules/
+*.log
+
+# Editor
+.vscode/
+.idea/
+.DS_Store

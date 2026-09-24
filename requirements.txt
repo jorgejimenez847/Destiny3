@@ -1,0 +1,5 @@
+Django>=5.2,<5.3
+psycopg2-binary>=2.9
+python-decouple>=3.8
+django-tailwind>=3.8
+django-widget-tweaks>=1.5
