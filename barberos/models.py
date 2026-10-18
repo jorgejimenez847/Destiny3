@@ -1,3 +1,5 @@
+from django.contrib.postgres.constraints import ExclusionConstraint
+from django.contrib.postgres.fields import DateTimeRangeField, RangeBoundary, RangeOperators
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
@@ -44,7 +46,7 @@ class DatoBarbero(models.Model):
         # Todas las escrituras de agenda se serializan por barbero.
         with transaction.atomic():
             if self.barbero_id:
-                PerfilBarbero.objects.select_for_update().get(pk=self.barbero_id)
+                self.barbero = PerfilBarbero.objects.select_for_update().get(pk=self.barbero_id)
             self.full_clean()
             return super().save(*args, **kwargs)
 
@@ -87,6 +89,15 @@ class Horario(DatoBarbero):
             barbero_id=self.barbero_id, dia=self.dia, inicio__lt=self.fin,
             fin__gt=self.inicio).exclude(pk=self.pk).exists():
             raise ValidationError("Este turno se superpone con otro horario del barbero.")
+        if self.pk:
+            validar_cambio_horario(self)
+
+    def delete(self, *args, **kwargs):
+        with transaction.atomic():
+            PerfilBarbero.objects.select_for_update().get(pk=self.barbero_id)
+            validar_cambio_horario(self, eliminar=True)
+            return super().delete(*args, **kwargs)
+
 
 
 class Bloqueo(DatoBarbero):
@@ -113,9 +124,62 @@ class Bloqueo(DatoBarbero):
         if not self.inicio or not self.fin:
             return
         if timezone.is_naive(self.inicio) or timezone.is_naive(self.fin):
-            raise ValidationError("Las fechas deben incluir la zona horaria de Panamá.")
+            raise ValidationError({"inicio": "Las fechas deben incluir la zona horaria de Panamá."})
         if self.fin <= self.inicio:
             raise ValidationError({"fin": "El fin debe ser posterior al inicio."})
         if self.barbero_id and Bloqueo.objects.filter(barbero_id=self.barbero_id,
             inicio__lt=self.fin, fin__gt=self.inicio).exclude(pk=self.pk).exists():
             raise ValidationError("Ya existe un bloqueo que cubre parte de este intervalo.")
+        if self.barbero_id and Ocupacion.objects.filter(barbero_id=self.barbero_id,
+            inicio__lt=self.fin, fin__gt=self.inicio).exists():
+            raise ValidationError("El bloqueo afecta un intervalo ocupado. Resuelve esa ocupación antes de bloquear.")
+
+
+class RangoFechaHora(models.Func):
+    function = "TSTZRANGE"
+    output_field = DateTimeRangeField()
+
+
+class Ocupacion(DatoBarbero):
+    """Intervalo ocupado mínimo para M08. No representa pago ni reserva completa.
+
+    La futura Fase 4 podrá relacionar su reserva con este intervalo. No se expone
+    un flujo de creación de reservas ni de pago en esta fase.
+    """
+    servicio = models.ForeignKey("servicios.Servicio", on_delete=models.PROTECT)
+    inicio = models.DateTimeField()
+    fin = models.DateTimeField()
+    referencia = models.CharField(max_length=100, blank=True)
+
+    class Meta:
+        ordering = ["inicio"]
+        constraints = [
+            models.CheckConstraint(condition=Q(fin__gt=F("inicio")), name="ocupacion_orden_valido"),
+            ExclusionConstraint(name="ocupacion_sin_solapamiento", expressions=[
+                (RangoFechaHora("inicio", "fin", RangeBoundary()), RangeOperators.OVERLAPS),
+                ("barbero", RangeOperators.EQUAL),
+            ], violation_error_message="El barbero ya tiene un intervalo ocupado en ese horario."),
+        ]
+
+    def clean(self):
+        super().clean()
+        if self.barbero_id and self.servicio_id and self.inicio and self.fin:
+            from .disponibilidad import validar_intervalo
+            validar_intervalo(self.barbero, self.servicio, self.inicio, self.fin, excluir=self.pk)
+
+
+def validar_cambio_horario(horario, eliminar=False):
+    """Evita dejar ocupaciones futuras sin un turno que las contenga."""
+    for ocupacion in Ocupacion.objects.filter(barbero_id=horario.barbero_id, fin__gt=timezone.now()):
+        inicio=timezone.localtime(ocupacion.inicio,timezone.get_default_timezone())
+        fin=timezone.localtime(ocupacion.fin,timezone.get_default_timezone())
+        turnos=list(Horario.objects.filter(barbero_id=horario.barbero_id,dia=inicio.weekday()).exclude(pk=horario.pk))
+        if not eliminar and horario.dia == inicio.weekday():
+            turnos.append(horario)
+        contenido=False
+        for turno in turnos:
+            if turno.inicio <= inicio.time() and fin.time() <= turno.fin:
+                if not turno.descanso_inicio or fin.time() <= turno.descanso_inicio or inicio.time() >= turno.descanso_fin:
+                    contenido=True
+        if not contenido:
+            raise ValidationError("El cambio dejaría un intervalo ocupado fuera del horario. Resuelve la ocupación antes de cambiar el turno.")

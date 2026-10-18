@@ -3,6 +3,7 @@ from . import views
 
 app_name = "barberos"
 urlpatterns = [
+    path("disponibilidad/", views.disponibilidad, name="disponibilidad"),
     path("gestion/", views.gestion, name="gestion"),
     path("nuevo/", views.perfil_form, name="crear"),
     path("mi-perfil/", views.mi_perfil, name="mi_perfil"),

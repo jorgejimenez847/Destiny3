@@ -90,3 +90,23 @@ def agenda_eliminar(request, pk, tipo, item):
             messages.success(request, "Registro eliminado correctamente.")
         return redirect("barberos:detalle", pk=perfil.pk)
     return render(request, "barberos/confirmar.html", {"objeto": instancia, "perfil": perfil})
+
+
+@require_http_methods(["GET"])
+def disponibilidad(request):
+    from .forms import DisponibilidadForm
+    from .disponibilidad import calcular_disponibilidad
+    from servicios.models import Servicio
+    form=DisponibilidadForm(request.GET if request.GET else None)
+    franjas=None
+    if form.is_bound and form.is_valid():
+        try:
+            franjas=calcular_disponibilidad(form.cleaned_data["barbero"],
+                form.cleaned_data["servicio"],form.cleaned_data["fecha"])
+        except ValidationError as exc:
+            form.add_error(None,"; ".join(exc.messages))
+    perfiles=PerfilBarbero.objects.filter(activo=True,usuario__is_active=True,usuario__rol="BARBERO").select_related("usuario").prefetch_related("servicios")
+    opciones=[{"id":p.pk,"nombre":str(p),"servicios":[s.pk for s in p.servicios.all() if s.activo]} for p in perfiles]
+    return render(request,"barberos/disponibilidad.html",{"form":form,"franjas":franjas,"opciones_barberos":opciones,
+        "hay_barberos":PerfilBarbero.objects.filter(activo=True,usuario__is_active=True,usuario__rol="BARBERO").exists(),
+        "hay_servicios":Servicio.objects.filter(activo=True).exists()})

@@ -43,3 +43,28 @@ class BloqueoForm(EstiloForm, forms.ModelForm):
                    for name in ["inicio", "fin"]}
         help_texts = {"inicio": "Hora de Panamá. Para un día completo, comienza a las 00:00.",
                       "fin": "Para bloquear un día completo, termina a las 00:00 del día siguiente. También puedes bloquear varios días."}
+
+
+class DisponibilidadForm(EstiloForm, forms.Form):
+    servicio = forms.ModelChoiceField(queryset=None, empty_label="Selecciona un servicio")
+    barbero = forms.ModelChoiceField(queryset=None, empty_label="Selecciona un barbero")
+    fecha = forms.DateField(widget=forms.DateInput(attrs={"type": "date"},format="%Y-%m-%d"))
+
+    def __init__(self, *args, **kwargs):
+        from servicios.models import Servicio
+        from django.utils import timezone
+        super().__init__(*args, **kwargs)
+        self.fields["servicio"].queryset = Servicio.objects.filter(activo=True)
+        perfiles=PerfilBarbero.objects.filter(activo=True,usuario__is_active=True,usuario__rol="BARBERO")
+        servicio_id=self.data.get("servicio") if self.is_bound else self.initial.get("servicio")
+        if servicio_id and str(servicio_id).isdigit():
+            perfiles=perfiles.filter(servicios=servicio_id)
+        self.fields["barbero"].queryset=perfiles.select_related("usuario").distinct()
+        self.fields["fecha"].widget.attrs["min"]=timezone.localdate().isoformat()
+
+    def clean_fecha(self):
+        from django.utils import timezone
+        fecha=self.cleaned_data["fecha"]
+        if fecha < timezone.localdate():
+            raise forms.ValidationError("Selecciona hoy o una fecha futura.")
+        return fecha

@@ -77,3 +77,49 @@ class PermisosTests(AgendaTestCase):
         c=Client(enforce_csrf_checks=True)
         c.force_login(self.admin)
         self.assertEqual(c.post(reverse("barberos:crear"),{}).status_code,403)
+
+
+    def test_admin_django_no_bypassea_rol_barbero(self):
+        self.usuario.is_staff=True
+        self.usuario.is_superuser=True
+        self.usuario.save()
+        self.client.force_login(self.usuario)
+        self.assertEqual(self.client.get(reverse("admin:barberos_perfilbarbero_changelist")).status_code,403)
+
+
+    def test_admin_crea_perfil_y_rechaza_usuario_cliente(self):
+        from usuarios.models import Usuario
+        from barberos.models import PerfilBarbero
+        nuevo=Usuario.objects.create_user(username="nuevobarbero",rol="BARBERO")
+        self.client.force_login(self.admin)
+        url=reverse("barberos:crear")
+        r=self.client.post(url,{"usuario":nuevo.pk,"especialidad":"Cortes","servicios":[self.servicio.pk],"activo":"on"})
+        self.assertEqual(r.status_code,302)
+        self.assertTrue(PerfilBarbero.objects.filter(usuario=nuevo,servicios=self.servicio).exists())
+        r=self.client.post(url,{"usuario":self.cliente.pk,"especialidad":"Cortes","activo":"on"})
+        self.assertEqual(r.status_code,200)
+        self.assertFalse(PerfilBarbero.objects.filter(usuario=self.cliente).exists())
+
+    def test_editar_perfil_no_permite_cambiar_propietario_y_desactiva(self):
+        from barberos.models import PerfilBarbero
+        self.client.force_login(self.admin)
+        r=self.client.post(reverse("barberos:editar",args=[self.barbero.pk]),
+            {"usuario":self.otro_usuario.pk,"especialidad":"Barba","servicios":[self.servicio.pk]})
+        self.assertEqual(r.status_code,302)
+        perfil=PerfilBarbero.objects.get(pk=self.barbero.pk)
+        self.assertEqual(perfil.usuario_id,self.usuario.pk)
+        self.assertFalse(perfil.activo)
+
+    def test_admin_crud_bloqueo_con_fechas_locales(self):
+        from barberos.models import Bloqueo
+        self.client.force_login(self.admin)
+        datos={"inicio":"2030-01-07T10:00","fin":"2030-01-07T11:00","motivo":"AUSENCIA"}
+        r=self.client.post(reverse("barberos:bloqueo_crear",args=[self.barbero.pk]),datos)
+        self.assertEqual(r.status_code,302)
+        b=Bloqueo.objects.get()
+        datos["fin"]="2030-01-07T11:30"
+        self.assertEqual(self.client.post(reverse("barberos:bloqueo_editar",args=[self.barbero.pk,b.pk]),datos).status_code,302)
+        b.refresh_from_db()
+        self.assertEqual(b.fin.minute,30)
+        self.assertEqual(self.client.post(reverse("barberos:bloqueo_eliminar",args=[self.barbero.pk,b.pk])).status_code,302)
+        self.assertFalse(Bloqueo.objects.exists())

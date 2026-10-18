@@ -14,6 +14,7 @@
       <div class="flex flex-wrap items-center gap-4">
         <a href="{% url 'home' %}" class="text-xl font-bold tracking-wide">✂️ Barbería</a>
         <a href="{% url 'servicios:lista' %}" class="text-sm text-zinc-300 hover:text-amber-400">Servicios</a>
+        <a href="{% url 'barberos:disponibilidad' %}" class="text-sm text-zinc-300 hover:text-amber-400">Disponibilidad</a>
       </div>
       <div class="flex flex-wrap items-center gap-4 text-sm">
         {% if user.is_authenticated %}

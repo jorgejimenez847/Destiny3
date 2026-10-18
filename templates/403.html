@@ -1,0 +1,3 @@
+{% extends "base.html" %}
+{% block title %}Acceso restringido{% endblock %}
+{% block content %}<section class="max-w-xl mx-auto rounded-2xl border border-zinc-800 bg-zinc-900 p-8"><p class="text-amber-400">403 · Permisos</p><h1 class="text-2xl font-bold mt-2">No tienes acceso a esta sección</h1><p class="text-zinc-400 mt-3">Tu rol no permite realizar esta acción. Si crees que es un error, consulta con el administrador.</p><a href="{% url 'usuarios:redirigir_por_rol' %}" class="mt-6 inline-block text-amber-400 underline">Volver a mi panel</a></section>{% endblock %}

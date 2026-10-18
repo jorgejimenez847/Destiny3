@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Consultar disponibilidad{% endblock %}
+{% block content %}
+<div class="mb-8"><p class="text-sm text-amber-400">Horarios calculados en tiempo real</p><h1 class="text-3xl font-bold mt-1">Encuentra tu próximo horario</h1><p class="mt-3 text-zinc-400">Elige un servicio, su barbero y una fecha. Consideramos duración, descansos, ausencias e intervalos ocupados.</p></div>
+{% if not hay_servicios or not hay_barberos %}<div class="rounded-xl border border-zinc-800 bg-zinc-900 p-6 mb-6 text-zinc-300">Todavía no hay servicios o barberos activos. El administrador debe configurar el catálogo y los perfiles.</div>{% endif %}
+<form method="get" class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+{% if form.non_field_errors %}<div role="alert" class="text-amber-300 mb-4">{{ form.non_field_errors }}</div>{% endif %}
+<div class="grid gap-5 md:grid-cols-3">{% for field in form %}<div><label class="block text-sm mb-2" for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% for error in field.errors %}<p role="alert" class="text-sm text-amber-300 mt-2">{{ error }}</p>{% endfor %}</div>{% endfor %}</div>
+<p class="text-xs text-zinc-400 mt-4">Solo se muestran barberos que ofrecen el servicio seleccionado. Hora de Panamá. Los candidatos se separan por 15 minutos desde cada tramo libre.</p>
+<button class="mt-5 rounded-lg bg-amber-500 px-5 py-2 font-semibold text-zinc-950 hover:bg-amber-400">Consultar horarios</button>
+</form>
+{% if franjas != None %}
+<section class="mt-8" aria-live="polite"><div class="flex flex-wrap gap-3 justify-between items-center"><h2 class="text-xl font-semibold">{{ form.cleaned_data.barbero }} · {{ form.cleaned_data.fecha|date:"d/m/Y" }}</h2><p class="text-sm text-zinc-400">{{ form.cleaned_data.servicio.nombre }} · {{ form.cleaned_data.servicio.duracion_minutos }} minutos</p></div>
+<p class="text-sm text-zinc-400 mt-2 mb-5">{{ franjas|length }} horarios posibles. La consulta no aparta un horario; la reserva y el pago se incorporarán en la Fase 4.</p>
+<div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">{% for franja in franjas %}<div class="rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-4 text-center"><p class="font-semibold text-amber-400">{{ franja.inicio|date:"H:i" }} – {{ franja.fin|date:"H:i" }}</p><p class="text-xs text-zinc-400 mt-1">Disponible</p></div>{% empty %}<p class="col-span-full rounded-xl border border-zinc-800 bg-zinc-900 p-6 text-zinc-300">No hay horarios disponibles para esta combinación. Prueba otra fecha o barbero.</p>{% endfor %}</div>
+</section>
+{% else %}<p class="mt-8 text-zinc-400">Completa los tres campos para ver los horarios disponibles.</p>{% endif %}
+{{ opciones_barberos|json_script:"opciones-barberos" }}
+<script>
+(() => {
+  const datos = JSON.parse(document.getElementById('opciones-barberos').textContent);
+  const servicio = document.getElementById('id_servicio');
+  const barbero = document.getElementById('id_barbero');
+  function filtrar() {
+    const anterior = barbero.value;
+    barbero.replaceChildren(new Option('Selecciona un barbero', ''));
+    datos.filter(p => !servicio.value || p.servicios.includes(Number(servicio.value))).forEach(p => {
+      barbero.add(new Option(p.nombre, p.id, false, String(p.id) === anterior));
+    });
+  }
+  servicio.addEventListener('change', filtrar);
+  filtrar();
+})();
+</script>
+{% endblock %}
