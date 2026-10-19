@@ -1,30 +1,28 @@
-# Guion de demostración del Parcial 2
+# Demostración
 
-## Preparación
+## Preparar
 
-1. Activa dsw8408 y abre la raíz con manage.py.
-2. Docker Desktop en ejecución y PostgreSQL disponible. Ejecuta check, migrate, tailwind build y las pruebas según README.
-3. Ejecuta crear_datos_demo y crear_agenda_demo. Conserva la fecha que imprime el comando y las credenciales locales; las contraseñas existentes no cambian.
-4. Inicia Django y el watcher Tailwind en terminales separadas. Abre 127.0.0.1:8000.
+Activa el entorno, inicia PostgreSQL, aplica migraciones y ejecuta los comandos demo y Tailwind según README. Configura PayPal Sandbox y comprueba que tienes una cuenta Personal compradora. Inicia el sitio con `python scripts/iniciar.py`.
 
-## Recorrido de 6–8 minutos
+## Recorrido
 
-- **Fase 1**: muestra el catálogo con precios y duración. Login de cada rol y recuperación por consola. La suite original verifica registro, login/logout y recuperación.
-- **Fase 2 / M03**: administrador → Gestionar barberos → perfil demo. Muestra especialidad, servicios y activo/inactivo.
-- **Fase 2 / M05**: añade un turno en un día libre o edita uno sin ocupación. Intenta fin anterior al inicio. Muestra el descanso y la validación de superposición.
-- **Fase 2 / M06**: enseña ausencia parcial y un día completo bloqueado. Añade un bloqueo en un hueco sin ocupación; comprueba el mensaje de éxito.
-- **Fase 3 / M07**: consulta disponibilidad con servicio/barbero/fecha. Compara 30 y 50 minutos. Explica que los huecos se recalculan y no son una lista de horas guardadas.
-- **Fase 3 / M08**: muestra que no aparece el intervalo ocupado demo y que no se permiten cambios de agenda que lo invaliden. Ejecuta las pruebas de concurrencia para evidenciar que PostgreSQL impide dos intervalos simultáneos superpuestos.
-- **Permisos**: barbero → Mi perfil, consulta propia. Intenta /barberos/gestion/ con esa sesión: 403 con diseño del sitio.
+1. Inicio → Registro/Login → Servicios. Muestra precio y duración.
+2. Administrador → Gestionar barberos. Revisa especialidad, servicios, turnos, descansos y bloqueos. Intenta guardar un horario invertido o superpuesto.
+3. Cliente → Disponibilidad. Compara servicios de distinta duración y consulta el día bloqueado. Selecciona un intervalo libre.
+4. Revisa el resumen y confirma. Abre el mismo horario en otra sesión de cliente: ya no debe ofrecerse.
+5. Continúa a PayPal Sandbox, aprueba con la cuenta compradora y vuelve al sitio. Verifica que la cita cambie a Confirmada y que aparezca su referencia de captura.
+6. En otra reserva pendiente, cancela y comprueba que el horario se libera. Para mostrar expiración automática, deja vencer una retención con el procesador activo.
+7. Comprueba que otro cliente no puede consultar esa reserva y que un barbero no puede administrar perfiles ajenos.
 
-La consulta no crea reservas ni cobra. El flujo completo, bloqueo temporal, PayPal y estados quedan expresamente para Fase 4.
+No se usan pagos Live. Una respuesta de pago incierta mantiene el horario protegido; el procesador consulta y reintenta sin duplicar cobros. Los pagos tardíos incompatibles se devuelven en Sandbox.
 
 ## Evidencia técnica
 
 ```powershell
-python manage.py test barberos.tests.test_concurrencia --noinput
+python manage.py test --noinput
+python manage.py test reservas.tests.test_concurrencia --noinput
 python manage.py makemigrations --check --dry-run
 git status --short --branch
 ```
 
-Las pruebas de concurrencia usan dos conexiones independientes y barrera de sincronización, no llamadas secuenciales. La exclusión PostgreSQL sigue rechazando un conflicto al omitir validación Python; la escritura normal también bloquea por barbero.
+Las pruebas simuladas de PayPal son distintas de una aprobación y captura real en Sandbox. El resultado comprobado de cada una se registra en VALIDACION.md.

@@ -4,6 +4,7 @@
 <div class="rounded-2xl border border-zinc-800 bg-zinc-900 p-8">
   <p class="text-xs uppercase tracking-wide text-amber-400">Rol: Cliente</p>
   <h1 class="mt-1 text-3xl font-bold">Hola, {{ user.first_name|default:user.username }}</h1>
-  <p class="mt-2 text-zinc-400">Aquí podrás reservar citas y consultar tu historial.</p>
+  <p class="mt-2 text-zinc-400">Elige un horario disponible o consulta el estado de tu reserva y pago de prueba.</p>
+<a class="mt-6 inline-block rounded-lg bg-amber-500 px-4 py-3 font-semibold text-zinc-950" href="{% url 'reservas:lista' %}">Mis reservas</a>
 </div>
 {% endblock %}

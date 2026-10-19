@@ -1,131 +1,122 @@
-# Destiny 3 · Sistema web de reservas para barbería
+# Destiny 3
 
-Desarrollo de Software VIII. Integrantes: Guillermo Cuevas, Jorge Jiménez, Jonathán Martínez, Luis González y Marlenis Quintero.
+Sistema web de reservas para barbería · Desarrollo de Software VIII.
 
-Python 3.12/3.13 · Django 5.2 · PostgreSQL 16 · Tailwind CSS Standalone.
+Equipo: Guillermo Cuevas, Jorge Jiménez, Jonathán Martínez, Luis González y Marlenis Quintero.
 
-## Alcance de esta versión
+Python 3.12/3.13, Django 5.2, PostgreSQL 16 y Tailwind CSS Standalone.
 
-- Fase 1: registro, login/logout, recuperación de contraseña, roles y catálogo de servicios con duración y precio positivos.
-- Fase 2: perfiles de barberos, especialidad, servicios, estado, turnos semanales, descansos, ausencias, vacaciones y días completos no disponibles.
-- Fase 3: consulta de disponibilidad calculada y prevención de superposiciones en Python y PostgreSQL, incluidas escrituras concurrentes.
-- Reserva completa, bloqueo durante pago, PayPal y estados de cita corresponden a la **Fase 4** y no están implementados.
+## Funcionalidades
 
-## Instalación en Windows / Anaconda
+- Fase 1: autenticación, recuperación de contraseña, roles y servicios con duración y precio.
+- Fase 2: perfiles de barberos, servicios asignados, turnos, descansos, ausencias y días bloqueados.
+- Fase 3: disponibilidad calculada y prevención de solapamientos en servidor y PostgreSQL.
+- Fase 4: selección, resumen, retención temporal, pago PayPal Sandbox, confirmación y transiciones de estado.
 
-Abre una terminal en la raíz que contiene `manage.py` y `.git`. En este equipo está dentro de OneDrive, en `DESARROLLO DE SOFTWARE VIII/Destiny3/Destiny3`; la carpeta `DesarrolloSoftwareVIII/portal_dsw` es otro proyecto.
+La administración de perfiles y horarios requiere rol Administrador. Cada barbero consulta sus propios datos. Las reservas y sus pagos solo son accesibles para el cliente propietario. Los paneles avanzados, la cancelación de citas pagadas, los comprobantes y las demás funciones de las fases 5 y 6 quedan fuera de esta entrega.
+
+## Instalación
+
+Ejecuta desde la carpeta que contiene `manage.py`:
 
 ```powershell
 conda activate dsw8408
-python --version
 python -m pip install -r requirements.txt
 python -m pip check
 ```
 
-Si no existe el entorno: `conda create -n dsw8408 python=3.12 pip`, seguido de su activación. También se admite un entorno virtual con Python 3.12 o 3.13; no hace falta crearlo si usas Anaconda.
+Si no existe el entorno, créalo con `conda create -n dsw8408 python=3.12 pip`. También puedes usar un entorno virtual con Python 3.12 o 3.13.
 
-Genera configuración local **solo para una instalación nueva**:
+Para una instalación nueva:
 
 ```powershell
 python scripts/preparar_entorno.py
 ```
 
-El script crea `.env` con claves aleatorias y no reemplaza archivos existentes. Revisa los valores con `.env.example` como referencia. No subas `.env` a Git. Si ya existe, conserva sus credenciales y añade `DJANGO_DEBUG=True` para desarrollo. Se evita la variable genérica `DEBUG`, que en Windows puede tener valores ajenos a Django. El valor por defecto de `DJANGO_DEBUG` es False; no hay clave secreta fija ni cambio automático de motor de BD.
+El script genera claves aleatorias en `.env` y nunca reemplaza un archivo existente. Conserva tus credenciales locales. Usa `.env.example` como referencia y no subas `.env` a Git. Para desarrollo se utiliza `DJANGO_DEBUG=True`; el valor por defecto es False.
 
-### PostgreSQL
+### PostgreSQL y migraciones
 
-Inicia Docker Desktop, espera a que el motor esté operativo y ejecuta:
+Abre Docker Desktop y espera a que el motor esté disponible:
 
 ```powershell
 docker compose up -d --wait db
-docker compose ps
-python manage.py check
 python manage.py migrate
-python manage.py showmigrations
+python manage.py check --database default
 ```
 
-`docker-compose.yml` toma DB_NAME, DB_USER, DB_PASSWORD y DB_PORT desde `.env`, conserva datos en un volumen y publica el puerto solo en localhost. DB_HOST debe ser `localhost` al ejecutar Django en Windows. Un servidor PostgreSQL propio también sirve si ajustas `.env`.
+Docker utiliza DB_NAME, DB_USER, DB_PASSWORD y DB_PORT de `.env`, publica PostgreSQL solo en localhost y conserva los datos en un volumen. Django se ejecuta fuera del contenedor, con DB_HOST=localhost. Si utilizas un servidor propio, ajusta estas variables.
 
-La migración de M08 habilita `btree_gist`. En Docker el usuario inicial puede crear esta extensión. En PostgreSQL administrado, pide al administrador habilitarla si el usuario de migraciones carece de permisos. Para ejecutar pruebas el usuario también necesita permiso CREATEDB; Django crea y destruye una base `test_<DB_NAME>`, no la principal.
+La migración de intervalos utiliza `btree_gist`. En un servidor administrado, el administrador debe habilitar la extensión si tu usuario no tiene permisos. Las pruebas necesitan permiso CREATEDB y usan una base `test_<DB_NAME>`, separada de la principal.
 
-**Importante:** cambiar DB_USER/DB_PASSWORD en `.env` no cambia las credenciales de un volumen ya inicializado. Conserva las credenciales existentes o solicita un cambio controlado; no borres el volumen para resolverlo.
+Cambiar las credenciales de `.env` no modifica un volumen PostgreSQL ya inicializado. Conserva las credenciales existentes; no borres el volumen para resolver errores de conexión.
 
-### Tailwind
+### PayPal Sandbox
 
-```powershell
-python manage.py tailwind build
-```
+Configura localmente PAYPAL_MODE=sandbox, PAYPAL_CLIENT_ID y PAYPAL_CLIENT_SECRET. PAYPAL_RETURN_BASE debe coincidir con la dirección del sitio; para desarrollo es `http://127.0.0.1:8000`. El ejemplo versionado solo contiene los nombres de estas variables. No hay endpoints Live.
 
-El primer build puede descargar el ejecutable oficial de Tailwind. No se requiere Node.js. El CSS compilado se ignora en Git: recompílalo después de clonar y después de modificar templates. Sin este paso el HTML puede mostrarse sin estilo.
+Los precios del catálogo se cobran en USD, con equivalencia numérica B/. 1,00 = USD 1,00. El importe se guarda al confirmar el resumen y se comprueba de nuevo en la respuesta del servidor de PayPal. La cuenta compradora debe ser **Personal Sandbox**, distinta de la cuenta Business asociada a la aplicación. No se mueve dinero real.
 
-## Datos de demostración
+### Datos demo y estilos
 
 ```powershell
 python manage.py crear_datos_demo
 python manage.py crear_agenda_demo
+python manage.py tailwind build
 ```
 
-`crear_datos_demo` crea `cliente_demo`, `barbero_demo` y `admin_demo` y cuatro servicios si no existen. Para usuarios nuevos usa DEMO_PASSWORD desde `.env`, o pide una clave mediante entrada oculta. No muestra la contraseña ni cambia cuentas existentes. Si olvidaste una contraseña existente, puedes elegir otra mediante `python manage.py changepassword admin_demo` (acción manual).
+Se crean cliente_demo, barbero_demo y admin_demo si no existen. Las cuentas nuevas usan DEMO_PASSWORD del archivo local o una contraseña introducida de forma oculta. Los comandos no reemplazan contraseñas ni agendas existentes. Si olvidaste una contraseña local, elige otra con `python manage.py changepassword <usuario>`.
 
-`crear_agenda_demo` crea el perfil del barbero demo y sus turnos de lunes a sábado, 09:00–17:00 con descanso 12:00–13:00, solo cuando crea el perfil. Añade ejemplos para el siguiente día de lunes a sábado: 09:00–09:30 ocupado, 10:00–11:00 ausente y el día siguiente completo no disponible. Son intervalos reales persistidos; no horas disponibles precargadas. El comando no reemplaza agendas ni ocupaciones existentes y explica si algún ejemplo no pudo añadirse. Usa `--fecha AAAA-MM-DD` para elegir una fecha futura.
+La agenda demo añade turnos de lunes a sábado con descanso, una ausencia parcial, un día completo bloqueado y un intervalo ocupado. El comando indica la fecha; puedes elegir otra con `--fecha AAAA-MM-DD`. Tailwind no requiere Node.js y puede descargar su ejecutable oficial en la primera compilación.
 
-## Iniciar el sitio
-
-Dos terminales en la raíz del proyecto, ambas con `conda activate dsw8408`:
+## Iniciar el proyecto
 
 ```powershell
-# Terminal 1
+conda activate dsw8408
+python scripts/iniciar.py
+```
+
+El lanzador ejecuta Django, Tailwind y el procesador de retenciones con el mismo entorno. Abre http://127.0.0.1:8000/. Ctrl+C detiene los tres. Si alguno se detiene, el lanzador cierra la sesión para evitar reservas sin procesador.
+
+También puedes ejecutar cada comando en una terminal distinta:
+
+```powershell
 python manage.py runserver
-```
-
-```powershell
-# Terminal 2
 python manage.py tailwind start
+python manage.py procesar_retenciones
 ```
 
-Abre http://127.0.0.1:8000/. Con el CSS ya compilado, el watcher no es obligatorio para una demostración sin cambios de diseño. La recuperación de contraseña usa por defecto correo por consola; el enlace se muestra en la terminal de Django. SMTP real queda como configuración posterior.
+**El procesador debe permanecer activo.** Libera retenciones vencidas y consulta pagos cada pocos segundos, aunque nadie visite el sitio. Un latido controla su disponibilidad; no se aceptan reservas nuevas si lleva más de 90 segundos detenido. Para ejecutar un ciclo manual: `python manage.py procesar_retenciones --una-vez`.
 
-## Cómo demostrar las fases 2 y 3
+## Reservas y pagos
 
-1. Como visitante, abre **Disponibilidad**, selecciona Corte de cabello, el barbero demo y la fecha que indicó `crear_agenda_demo`. Verás huecos reales de 30 minutos; no se ofrecen intervalos que crucen la ausencia ni el descanso. La primera franja comienza a las 09:30 por la ocupación de 09:00.
-2. Consulta el día siguiente: aparecerá el estado sin disponibilidad. Prueba un servicio de 50 minutos: cambiarán los horarios que caben dentro de cada tramo.
-3. Inicia sesión como administrador y abre **Gestionar barberos**. Edita especialidad, servicios y estado; añade/edita/elimina turnos y bloqueos, con confirmación antes de eliminar.
-4. Intenta un turno invertido, un descanso fuera del turno o turnos superpuestos. El formulario muestra errores y no guarda datos inválidos.
-5. Añade un bloqueo en un hueco libre y vuelve a consultar disponibilidad. No podrás añadirlo sobre un intervalo ocupado ni reducir/eliminar un turno que ampare ocupaciones futuras.
-6. Inicia sesión como barbero: **Mi perfil y horario** es de consulta. Intentar editar o acceder al perfil de otro barbero responde 403. El cliente tampoco puede administrar agendas.
-7. Las pruebas de concurrencia muestran que solo una de dos escrituras simultáneas puede persistirse. No hay botón de reservar o pagar: consultar no aparta horarios.
+1. Inicia sesión como Cliente y abre Disponibilidad.
+2. Selecciona servicio, barbero compatible y fecha; elige un horario.
+3. Revisa el resumen y confirma. El servidor vuelve a comprobar la disponibilidad y retiene el intervalo durante un máximo de diez minutos.
+4. Abre PayPal Sandbox y aprueba con la cuenta compradora ficticia.
+5. El procesador verifica la orden, captura el pago y confirma la cita. Al volver al sitio también puedes pulsar Verificar pago. Mis reservas permite consultar el resultado y la actividad de esa cita.
 
-Para crear otro barbero: administrador Django → Usuarios → Añadir → rol Barbero; después **Gestionar barberos → Nuevo perfil**, asigna servicios y añade turnos. La interfaz propia exige rol ADMIN; el administrador Django además exige cuenta staff y permisos.
+La disponibilidad descuenta duración real, turnos, descansos, bloqueos y ocupaciones activas. Dos intervalos adyacentes son válidos; los intervalos superpuestos se rechazan mediante transacciones y una exclusión GiST de PostgreSQL.
 
-## Reglas de disponibilidad e integridad
+Cancelar antes de la captura o dejar vencer la retención libera el horario. Si una captura queda incierta por una desconexión, el intervalo permanece protegido hasta conocer el resultado; no se cobra otra vez ni se libera un posible pago. Los reintentos utilizan los mismos identificadores de PayPal. Un pago tardío que no pueda confirmar su cita se devuelve en Sandbox, sin afectar una reserva nueva. Si PayPal está caído, la verificación o devolución queda pendiente y se reintenta.
 
-- Zona horaria: America/Panama. Turnos dentro del mismo día, precisión de minutos; para un descanso adicional puedes dividir el día en varios turnos no superpuestos.
-- Solo barberos/usuarios/servicios activos y parejas barbero-servicio asignadas ofrecen disponibilidad.
-- Los candidatos se generan cada 15 minutos desde cada tramo libre. Este paso organiza las alternativas; la duración real proviene del servicio. La validación backend acepta cualquier inicio válido, sin depender de esa grilla.
-- Intervalos semiabiertos `[inicio, fin)`: dos intervalos adyacentes son válidos. No se puede cruzar un descanso, bloqueo, hueco entre turnos o fin de jornada.
-- Los días sin turnos, los pasados y los bloqueados no ofrecen horarios. El día actual excluye horas ya transcurridas.
-- `Ocupacion` es una estructura mínima de M08, sin cliente, pago ni estados de reserva. Sus escrituras bloquean el perfil dentro de una transacción, vuelven a validar y tienen una exclusión GiST en PostgreSQL.
-- La Fase 4 debe usar este punto de escritura para ocupaciones, mantener el bloqueo transaccional y gestionar la vida útil de las reservas. Consultar disponibilidad es una instantánea y no garantiza un hueco hasta su escritura validada.
-- SQL directo/bulk que omita el bloqueo sigue protegido contra solapamientos por PostgreSQL; una transacción puede abortar por conflicto/deadlock. El flujo del modelo evita esta competencia mediante bloqueo ordenado. No se deben usar actualizaciones masivas para saltarse reglas de agenda.
+Los estados de atención están definidos con transiciones controladas para Administrador o barbero asignado; la interfaz completa de agenda de atención se desarrollará en Fase 6. La recuperación de contraseña usa correo por consola en desarrollo.
 
-## Pruebas
+## Pruebas y diagnóstico
 
 ```powershell
 python manage.py check
 python manage.py makemigrations --check --dry-run
 python manage.py test --noinput
+python manage.py tailwind build
 ```
 
-Pruebas sobre PostgreSQL: autenticación y roles, servicios, perfiles, horarios, descansos, bloqueos, días completos, formularios/permisos por GET y POST, disponibilidad y duraciones, fronteras de intervalos, exclusión en BD y dos transacciones simultáneas. Los datos demo se prueban dos veces para comprobar que no se duplican ni cambian contraseñas.
+- Dependencias ausentes: activa el entorno correcto e instala con `python -m pip install -r requirements.txt`.
+- Error dockerDesktopLinuxEngine: abre Docker Desktop y espera a que termine de iniciar.
+- Error PostgreSQL: revisa `.env`, puerto, credenciales del volumen y `docker compose ps`.
+- Página sin estilos: compila Tailwind y comprueba `/static/css/dist/styles.css`.
+- Barbero sin disponibilidad: revisa rol, usuario/perfil activos, servicios asignados, turnos y bloqueos.
+- Reservas pausadas: inicia `procesar_retenciones`; comprueba su terminal y conectividad con PostgreSQL.
 
-Revisión de los diez hallazgos recibidos: [docs/AUDITORIA.md](docs/AUDITORIA.md). Diseño y recorrido de presentación: [docs/DEMOSTRACION.md](docs/DEMOSTRACION.md).
-
-## Solución de problemas
-
-- `No module named decouple/widget_tweaks/psycopg2`: confirma `conda activate dsw8408`, revisa `where.exe python` e instala con `python -m pip install -r requirements.txt`.
-- Error de tubería `dockerDesktopLinuxEngine`: abre Docker Desktop y espera al motor Linux. No requiere sustituir PostgreSQL por SQLite.
-- Error de conexión/contraseña PostgreSQL: revisa `.env`, puerto y `docker compose ps`; no compartas ni imprimas credenciales al pedir ayuda.
-- `SECRET_KEY` o variables DB ausentes: genera `.env` solo si no existe o completa el archivo local con `.env.example` como guía.
-- `Invalid truth value: release`: usa esta versión y `DJANGO_DEBUG=True` en `.env`.
-- Página sin estilos: ejecuta `python manage.py tailwind build` y verifica `/static/css/dist/styles.css`.
-- Un barbero no aparece: comprueba rol, usuario activo, perfil activo y servicio asignado; después configura su horario.
+Documentación: [auditoría](docs/AUDITORIA.md), [validación](docs/VALIDACION.md) y [demostración](docs/DEMOSTRACION.md).
+Referencias de integración: [Orders v2](https://developer.paypal.com/api/orders/v2/), [OAuth](https://developer.paypal.com/api/rest/authentication/) e [idempotencia](https://developer.paypal.com/api/rest/reference/idempotency/).

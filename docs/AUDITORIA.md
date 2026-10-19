@@ -1,24 +1,18 @@
-# Revisión técnica de la auditoría cruzada
+# Revisión de la auditoría cruzada
 
-Fuentes: Auditoría Cruzada de Software (15/10/2026) y Laboratorio 3, secciones 8 y 9.
-Los resultados de otro equipo describen su instalación; no demuestran por sí solos defectos del código ni pruebas sobre PostgreSQL.
+Fuente: Auditoría Cruzada de Software, 15/10/2026. Se contrastaron los hallazgos con el código y PostgreSQL, conservando los requisitos del Laboratorio 3.
 
-| Hallazgo | Clasificación | Justificación y respuesta |
+| Hallazgo | Clasificación | Respuesta |
 |---|---|---|
-| H-01 Arranque sin entorno configurado | Parcialmente aceptado | Las dependencias son un prerrequisito. Se documenta Anaconda y una secuencia de instalación verificable. No debe arrancar sin Django instalado. |
-| H-02 Paquetes faltantes | Aceptado | Faltaban decouple, widget-tweaks y el controlador PostgreSQL en dsw8408; requirements.txt ya los declaraba. Se instalaron desde ese archivo, sin añadir dependencias de aplicación. |
-| H-03 Arranque sin .env | Parcialmente aceptado | Es correcto exigir secretos externos. Se añade generador local con claves aleatorias y ejemplo; se rechaza una SECRET_KEY fija como valor por defecto. |
-| H-04 Base de datos sin configurar | Parcialmente aceptado | PostgreSQL es obligatorio. Se documenta y parametriza Docker desde .env. No se debe ocultar una configuración incompleta cambiando de motor. |
-| H-05 PostgreSQL detenido | Parcialmente aceptado | Es un problema del servicio local; se inicia Docker y se verifica conectividad y migraciones. Se incorpora healthcheck y guía de diagnóstico. |
-| H-06 Falta de respaldo local SQLite | Rechazado | PostgreSQL es requisito explícito y garantiza exclusión de intervalos. Docker proporciona la alternativa local reproducible. No habrá fallback silencioso a SQLite. |
-| H-07 Base sin inicializar | Parcialmente aceptado | Existían migraciones versionadas; aplicarlas es un paso de instalación. En esta copia las de Fase 1 ya estaban aplicadas. Las nuevas se añaden y verifican. |
-| H-08 Falta de datos demo | Parcialmente aceptado | El comando ya existía. Se documenta y amplía sin sobrescribir usuarios ni contraseñas existentes. La clave se obtiene de configuración local o entrada oculta. |
-| H-09 Pruebas sin entorno | Parcialmente aceptado | El entorno y la BD de pruebas deben estar preparados. Se conserva la suite y se amplía; no se considera un defecto de la autenticación. |
-| H-10 Prueba final satisfactoria | Rechazado como defecto | Es evidencia positiva de 13 pruebas en otro entorno, no un error. Se vuelve a verificar aquí y se registran resultados propios. |
+| H-01 Arranque sin entorno | Parcialmente aceptado | Las dependencias son un requisito previo. Se documenta la instalación con Anaconda. |
+| H-02 Paquetes faltantes | Aceptado | Ya estaban declarados; se instalaron desde requirements.txt. |
+| H-03 Falta de .env | Parcialmente aceptado | Se exigen secretos externos y se añade un generador local. No se acepta una SECRET_KEY fija por defecto. |
+| H-04 Base sin configurar | Parcialmente aceptado | Se parametriza Docker y se documenta PostgreSQL. No se oculta una configuración incompleta cambiando de motor. |
+| H-05 PostgreSQL detenido | Parcialmente aceptado | Es un problema del servicio local. Se comprueban conectividad, healthcheck y migraciones. |
+| H-06 Respaldo SQLite | Rechazado | PostgreSQL es obligatorio y aporta la exclusión de intervalos. Docker permite reproducir el entorno local. |
+| H-07 Migraciones sin aplicar | Parcialmente aceptado | Las migraciones ya estaban versionadas; aplicarlas forma parte de la instalación. Las nuevas también se incluyen. |
+| H-08 Falta de datos demo | Parcialmente aceptado | El comando existía. Se documenta y amplía sin reemplazar cuentas ni contraseñas. |
+| H-09 Pruebas sin entorno | Parcialmente aceptado | Requieren dependencias y base de pruebas. Se amplía la suite sobre PostgreSQL. |
+| H-10 Prueba final satisfactoria | Rechazado como defecto | Es evidencia positiva de la auditoría, no un error. La validación de esta entrega se registra por separado. |
 
-## Hallazgos adicionales de esta revisión
-
-- La variable global DEBUG=release del equipo interfería con python-decouple. Se usa DJANGO_DEBUG con valor por defecto False.
-- Las capturas de la auditoría muestran páginas sin CSS: se exige compilar Tailwind en la instalación y verificar su carga.
-- Se añaden restricciones positivas a duración y precio; duración cero no permite un cálculo realista.
-- No se integra el flujo de reservas, pagos ni estados de Fase 4.
+Se corrigió además la colisión de DEBUG con variables de Windows usando DJANGO_DEBUG, se verificó el CSS compilado y se añadieron restricciones positivas para precio y duración.

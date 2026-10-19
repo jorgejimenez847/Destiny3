@@ -16,16 +16,14 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-
     # Terceros
     "tailwind",
     "widget_tweaks",
-
-    # Apps propias (Fase 1)
+    # Apps propias
     "usuarios",
     "servicios",
     "barberos",
-
+    "reservas",
     # Tema de Tailwind
     "theme",
 ]
@@ -82,7 +80,9 @@ DATABASES = {
 }
 
 AUTH_PASSWORD_VALIDATORS = [
-    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
+    },
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
@@ -109,3 +109,13 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# La integración solo permite Sandbox.
+PAYPAL_MODE = config("PAYPAL_MODE", default="sandbox")
+PAYPAL_CLIENT_ID = config("PAYPAL_CLIENT_ID", default="")
+PAYPAL_CLIENT_SECRET = config("PAYPAL_CLIENT_SECRET", default="")
+PAYPAL_RETURN_BASE = config(
+    "PAYPAL_RETURN_BASE", default="http://127.0.0.1:8000"
+).rstrip("/")
+RETENCION_MINUTOS = 10
+PROCESADOR_MAX_LATIDO_SEGUNDOS = 90
