@@ -173,7 +173,7 @@ def cancelar_cita(cita_id, actor):
         return cita
     if cita.estado != PENDIENTE:
         raise ValidationError(
-            "Solo se puede cancelar una reserva pendiente de pago en esta fase."
+            "Solo se pueden cancelar reservas pendientes de pago."
         )
     if pago.captura_solicitada_en is not None:
         raise ValidationError(
