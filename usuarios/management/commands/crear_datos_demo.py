@@ -1,9 +1,12 @@
-from django.core.management.base import BaseCommand
+from getpass import getpass
+from decouple import config
+from django.core.management.base import BaseCommand, CommandError
+from django.db import transaction
 
 from servicios.models import Servicio
 from usuarios.models import Usuario
 
-CLAVE_DEMO = "Demo12345!"
+
 
 USUARIOS = [
     ("cliente_demo", "Carlos", "Cliente", Usuario.Rol.CLIENTE, False),
@@ -22,7 +25,11 @@ SERVICIOS = [
 class Command(BaseCommand):
     help = "Crea usuarios (uno por rol) y servicios de demostración."
 
+    @transaction.atomic
     def handle(self, *args, **options):
+        clave_demo = config("DEMO_PASSWORD", default="") or getpass("Contraseña para nuevos usuarios demo: ")
+        if len(clave_demo) < 12:
+            raise CommandError("Usa una contraseña de demostración de al menos 12 caracteres.")
         for username, nombre, apellido, rol, es_admin in USUARIOS:
             usuario, creado = Usuario.objects.get_or_create(
                 username=username,
@@ -36,7 +43,7 @@ class Command(BaseCommand):
                 },
             )
             if creado:
-                usuario.set_password(CLAVE_DEMO)
+                usuario.set_password(clave_demo)
                 usuario.save()
             self.stdout.write(f"{'Creado' if creado else 'Ya existe'}: {username} ({rol})")
 
@@ -52,5 +59,5 @@ class Command(BaseCommand):
             self.stdout.write(f"{'Creado' if creado else 'Ya existe'}: {nombre}")
 
         self.stdout.write(self.style.SUCCESS(
-            f"Listo. Contraseña de los usuarios demo: {CLAVE_DEMO}"
+            "Datos de demostración preparados. Se conservan usuarios, contraseñas y servicios existentes."
         ))

@@ -1,5 +1,9 @@
 # Entorno
 .env
+.env.*
+!.env.example
+.venv/
+*.dump
 venv/
 env/
 __pycache__/

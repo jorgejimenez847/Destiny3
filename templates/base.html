@@ -10,13 +10,18 @@
 <body class="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col">
 
   <header class="border-b border-zinc-800">
-    <nav class="max-w-6xl mx-auto flex items-center justify-between px-4 py-4">
-      <div class="flex items-center gap-6">
+    <nav class="max-w-6xl mx-auto flex flex-wrap gap-4 items-center justify-between px-4 py-4">
+      <div class="flex flex-wrap items-center gap-4">
         <a href="{% url 'home' %}" class="text-xl font-bold tracking-wide">✂️ Barbería</a>
         <a href="{% url 'servicios:lista' %}" class="text-sm text-zinc-300 hover:text-amber-400">Servicios</a>
+        <a href="{% url 'barberos:disponibilidad' %}" class="text-sm text-zinc-300 hover:text-amber-400">Disponibilidad</a>
       </div>
-      <div class="flex items-center gap-4 text-sm">
+      <div class="flex flex-wrap items-center gap-4 text-sm">
         {% if user.is_authenticated %}
+          <a href="{% url 'usuarios:redirigir_por_rol' %}" class="text-amber-400 hover:underline">Mi panel</a>
+          {% if user.rol == 'CLIENTE' %}<a href="{% url 'reservas:lista' %}" class="hover:text-amber-400">Mis reservas</a>{% endif %}
+          {% if user.rol == 'ADMIN' %}<a href="{% url 'barberos:gestion' %}" class="hover:text-amber-400">Gestionar barberos</a>{% endif %}
+          {% if user.rol == 'BARBERO' %}<a href="{% url 'barberos:mi_perfil' %}" class="hover:text-amber-400">Mi perfil y horario</a>{% endif %}
           <span class="text-zinc-400">Hola, {{ user.first_name|default:user.username }}</span>
           <form method="post" action="{% url 'usuarios:logout' %}">
             {% csrf_token %}

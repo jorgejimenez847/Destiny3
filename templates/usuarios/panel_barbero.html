@@ -5,5 +5,6 @@
   <p class="text-xs uppercase tracking-wide text-amber-400">Rol: Barbero</p>
   <h1 class="mt-1 text-3xl font-bold">Hola, {{ user.first_name|default:user.username }}</h1>
   <p class="mt-2 text-zinc-400">Aquí verás tu agenda y actualizarás el estado de tus citas.</p>
+<a href="{% url 'barberos:mi_perfil' %}" class="mt-6 inline-block rounded-lg border border-amber-500 px-4 py-2 text-amber-400 hover:bg-zinc-800">Consultar mi perfil y horario</a>
 </div>
 {% endblock %}

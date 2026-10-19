@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Mi reserva · {{ cita.get_estado_display }}{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto"><a class="text-sm text-amber-400 hover:underline" href="{% url 'reservas:lista' %}">← Mis reservas</a>
+<section class="mt-5 rounded-2xl border border-zinc-800 bg-zinc-900 p-6 md:p-8">
+<p class="text-sm uppercase tracking-wide text-amber-400">{{ cita.get_estado_display }}</p><h1 class="mt-2 text-3xl font-bold">{{ cita.servicio_nombre }}</h1><p class="mt-2 text-zinc-400">{{ cita.barbero_nombre }} · {{ cita.inicio|date:"d/m/Y" }} · {{ cita.inicio|date:"H:i" }}–{{ cita.fin|date:"H:i" }}</p>
+<div class="grid gap-4 sm:grid-cols-2 mt-6"><div class="rounded-xl bg-zinc-950 p-4"><p class="text-sm text-zinc-400">Duración</p><p class="mt-1 text-lg">{{ cita.duracion_minutos }} minutos</p></div><div class="rounded-xl bg-zinc-950 p-4"><p class="text-sm text-zinc-400">Total de prueba</p><p class="mt-1 text-lg font-bold text-amber-400">USD {{ cita.precio|floatformat:2 }}</p></div></div>
+{% if cita.estado == 'PENDIENTE' %}
+  {% if pago.captura_solicitada_en %}<div role="status" class="mt-6 rounded-xl border border-amber-500/40 p-4"><p class="font-semibold">Estamos verificando el pago</p><p class="text-sm text-zinc-400 mt-2">El horario sigue protegido hasta conocer el resultado. No necesitas pagar otra vez.</p></div>
+  {% else %}<div role="status" class="mt-6 rounded-xl border border-amber-500/40 p-4"><p class="font-semibold">Horario retenido hasta {{ cita.expira_en|date:"H:i:s" }}</p><p class="text-sm text-zinc-400 mt-2">Completa la aprobación en PayPal Sandbox antes de que venza. Si cancelas o no pagas, liberaremos el horario automáticamente.</p></div>{% endif %}
+  <div class="flex flex-wrap gap-3 mt-6">
+  {% if not pago.captura_solicitada_en %}<form method="post" action="{% url 'reservas:pagar' cita.pk %}">{% csrf_token %}<button class="rounded-lg bg-amber-500 px-5 py-3 font-semibold text-zinc-950 hover:bg-amber-400">{% if pago.orden_id %}Volver a PayPal Sandbox{% else %}Pagar con PayPal Sandbox{% endif %}</button></form>{% endif %}
+  {% if pago.orden_id %}<form method="post" action="{% url 'reservas:verificar' cita.pk %}">{% csrf_token %}<button class="rounded-lg border border-amber-500 px-5 py-3 text-amber-400">Verificar pago</button></form>{% endif %}
+  {% if not pago.captura_solicitada_en %}<a href="{% url 'reservas:cancelar_pago' cita.pk %}" class="rounded-lg border border-zinc-700 px-5 py-3">Cancelar reserva pendiente</a>{% endif %}
+  </div>
+{% elif cita.estado == 'CONFIRMADA' %}<div role="status" class="mt-6 rounded-xl border border-amber-500/40 p-4"><h2 class="font-semibold text-amber-400">Reserva confirmada</h2><p class="mt-2 text-zinc-300">Tu pago de prueba se verificó desde el servidor y tu horario quedó reservado.</p></div>
+{% else %}<div role="status" class="mt-6 rounded-xl border border-zinc-700 p-4"><p>{{ cita.get_estado_display }}.</p><p class="mt-2 text-sm text-zinc-400">{% if cita.estado == 'CANCELADA' or cita.estado == 'EXPIRADA' or cita.estado == 'PAGO_FALLIDO' %}Esta reserva no ocupa el horario. Consulta disponibilidad para elegir nuevamente.{% endif %}</p><a class="mt-3 inline-block text-amber-400 underline" href="{% url 'barberos:disponibilidad' %}">Consultar disponibilidad</a></div>{% endif %}
+<p class="text-sm text-zinc-400 mt-5">Pago: {{ pago.get_estado_display }}. {{ pago.detalle }}</p>
+{% if pago.captura_id %}<p class="text-xs text-zinc-500 mt-2 break-all">Referencia de captura Sandbox: {{ pago.captura_id }}</p>{% endif %}
+<p class="text-xs text-zinc-500 mt-2 break-all">Reserva: {{ cita.pk }}</p>
+<p class="text-xs text-zinc-500 mt-3">Entorno de pruebas Sandbox · USD · Sin dinero real</p>
+</section>
+<section class="mt-6 rounded-2xl border border-zinc-800 p-6"><h2 class="text-lg font-semibold">Actividad de esta reserva</h2><ul class="mt-3 divide-y divide-zinc-800">{% for evento in cita.eventos.all %}<li class="py-3 text-sm"><time class="text-zinc-500">{{ evento.fecha|date:"d/m/Y H:i:s" }}</time><p class="mt-1 text-zinc-300">{{ evento.motivo }}</p></li>{% endfor %}</ul></section>
+{% if cita.estado == 'PENDIENTE' %}<p class="text-sm text-zinc-400 mt-4">El servidor revisa el estado automáticamente. <a class="text-amber-400 underline" href="{% url 'reservas:detalle' cita.pk %}">Actualizar estado</a></p>{% endif %}
+</div>
+{% endblock %}
