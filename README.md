@@ -104,6 +104,8 @@ Los estados de atención están definidos con transiciones controladas para Admi
 
 ## Pruebas y diagnóstico
 
+Última validación: 126 pruebas aprobadas en PostgreSQL y un pago completo verificado en PayPal Sandbox. La revisión visual en navegador y móvil queda pendiente.
+
 ```powershell
 python manage.py check
 python manage.py makemigrations --check --dry-run
@@ -118,5 +120,4 @@ python manage.py tailwind build
 - Barbero sin disponibilidad: revisa rol, usuario/perfil activos, servicios asignados, turnos y bloqueos.
 - Reservas pausadas: inicia `procesar_retenciones`; comprueba su terminal y conectividad con PostgreSQL.
 
-Documentación: [auditoría](docs/AUDITORIA.md), [validación](docs/VALIDACION.md) y [demostración](docs/DEMOSTRACION.md).
 Referencias de integración: [Orders v2](https://developer.paypal.com/api/orders/v2/), [OAuth](https://developer.paypal.com/api/rest/authentication/) e [idempotencia](https://developer.paypal.com/api/rest/reference/idempotency/).
