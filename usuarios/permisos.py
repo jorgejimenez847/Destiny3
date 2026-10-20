@@ -5,6 +5,10 @@ from django.contrib.auth.views import redirect_to_login
 from django.core.exceptions import PermissionDenied
 
 
+def es_administrador(usuario):
+    return usuario.is_authenticated and getattr(usuario, "rol", None) == "ADMIN"
+
+
 class RolRequeridoMixin(LoginRequiredMixin, UserPassesTestMixin):
     """Para vistas basadas en clases.
     Sin sesión -> redirige al login. Con rol incorrecto -> 403.

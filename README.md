@@ -67,6 +67,8 @@ python manage.py tailwind build
 
 Se crean cliente_demo, barbero_demo y admin_demo si no existen. Las cuentas nuevas usan DEMO_PASSWORD del archivo local o una contraseña introducida de forma oculta. Los comandos no reemplazan contraseñas ni agendas existentes. Si olvidaste una contraseña local, elige otra con `python manage.py changepassword <usuario>`.
 
+Para crear otro administrador, utiliza `python manage.py createsuperuser`; las cuentas nuevas reciben el rol Administrador. El rol por sí solo no concede acceso a `/admin/`: también se requieren `is_staff` y los permisos de Django.
+
 La agenda demo añade turnos de lunes a sábado con descanso, una ausencia parcial, un día completo bloqueado y un intervalo ocupado. El comando indica la fecha; puedes elegir otra con `--fecha AAAA-MM-DD`. Tailwind no requiere Node.js y puede descargar su ejecutable oficial en la primera compilación.
 
 ## Iniciar el proyecto
@@ -76,9 +78,9 @@ conda activate dsw8408
 python scripts/iniciar.py
 ```
 
-El lanzador ejecuta Django, Tailwind y el procesador de retenciones con el mismo entorno. Abre http://127.0.0.1:8000/. Ctrl+C detiene los tres. Si alguno se detiene, el lanzador cierra la sesión para evitar reservas sin procesador.
+El lanzador comprueba la configuración y las migraciones, y compila los estilos si faltan antes de abrir el servidor. Después ejecuta Django, Tailwind y el procesador de retenciones con el mismo entorno. Abre http://127.0.0.1:8000/. Ctrl+C detiene los tres. Si alguno se detiene, el lanzador cierra la sesión para evitar reservas sin procesador.
 
-También puedes ejecutar cada comando en una terminal distinta:
+Si prefieres iniciar por separado, ejecuta primero `python manage.py tailwind build`. Después puedes ejecutar cada comando en una terminal distinta:
 
 ```powershell
 python manage.py runserver
@@ -116,7 +118,7 @@ python manage.py tailwind build
 - Dependencias ausentes: activa el entorno correcto e instala con `python -m pip install -r requirements.txt`.
 - Error dockerDesktopLinuxEngine: abre Docker Desktop y espera a que termine de iniciar.
 - Error PostgreSQL: revisa `.env`, puerto, credenciales del volumen y `docker compose ps`.
-- Página sin estilos: compila Tailwind y comprueba `/static/css/dist/styles.css`.
+- Página sin estilos: ejecuta `python manage.py tailwind build` y comprueba `/static/css/dist/styles.css`. El lanzador lo hace automáticamente si falta el archivo; la primera compilación necesita Internet. Para servir estáticos durante el desarrollo, conserva `DJANGO_DEBUG=True`.
 - Barbero sin disponibilidad: revisa rol, usuario/perfil activos, servicios asignados, turnos y bloqueos.
 - Reservas pausadas: inicia `procesar_retenciones`; comprueba su terminal y conectividad con PostgreSQL.
 

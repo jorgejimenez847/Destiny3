@@ -1,5 +1,13 @@
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, UserManager
 from django.db import models
+
+
+class UsuarioManager(UserManager):
+    def create_superuser(self, username, email=None, password=None, **extra_fields):
+        extra_fields.setdefault("rol", "ADMIN")
+        if extra_fields["rol"] != "ADMIN":
+            raise ValueError("Un superusuario debe tener rol Administrador.")
+        return super().create_superuser(username, email, password, **extra_fields)
 
 
 class Usuario(AbstractUser):
@@ -14,6 +22,8 @@ class Usuario(AbstractUser):
         default=Rol.CLIENTE,
     )
     telefono = models.CharField(max_length=20, blank=True)
+
+    objects = UsuarioManager()
 
     def es_cliente(self):
         return self.rol == self.Rol.CLIENTE
