@@ -1,3 +1,16 @@
 {% extends "base.html" %}
-{% block title %}Cancelar reserva pendiente{% endblock %}
-{% block content %}<section class="max-w-xl mx-auto rounded-2xl border border-zinc-800 bg-zinc-900 p-8"><h1 class="text-2xl font-bold">¿Cancelar esta reserva pendiente?</h1><p class="text-zinc-400 mt-4">{{ cita.servicio_nombre }} · {{ cita.inicio|date:"d/m/Y H:i" }}. Al confirmar, el horario volverá a estar disponible si no hay una captura en proceso.</p><form method="post" action="{% url 'reservas:cancelar' cita.pk %}" class="flex flex-wrap gap-4 mt-6">{% csrf_token %}<button class="rounded-lg bg-amber-500 px-4 py-3 font-semibold text-zinc-950">Confirmar cancelación</button><a class="rounded-lg border border-zinc-700 px-4 py-3" href="{% url 'reservas:detalle' cita.pk %}">Conservar reserva</a></form></section>{% endblock %}
+{% block title %}Cancelar reserva{% endblock %}
+{% block content %}
+<section class="mx-auto max-w-xl rounded-2xl border border-zinc-800 bg-zinc-900 p-6 md:p-8">
+  <h1 class="text-2xl font-bold">Cancelar reserva</h1>
+  <p class="mt-4 text-zinc-300">{{ cita.servicio_nombre }} · {{ cita.inicio|date:"d/m/Y H:i" }}</p>
+  {% if cita.puede_cancelarse %}
+  <p class="mt-3 text-sm text-zinc-400">Puedes cancelar mientras el pago siga pendiente y no haya comenzado su verificación. Al confirmar, liberaremos el horario y guardaremos el motivo.</p>
+  <form method="post" action="{% url 'reservas:cancelar' cita.pk %}" class="mt-6 space-y-4">{% csrf_token %}
+    <label class="block text-sm" for="{{ form.motivo.id_for_label }}">{{ form.motivo.label }}</label>{{ form.motivo }}
+    {% for error in form.motivo.errors %}<p role="alert" class="text-sm text-amber-300">{{ error }}</p>{% endfor %}
+    <div class="flex flex-wrap gap-4"><button class="rounded-lg bg-amber-500 px-4 py-3 font-semibold text-zinc-950">Confirmar cancelación</button><a class="rounded-lg border border-zinc-700 px-4 py-3" href="{% url 'reservas:detalle' cita.pk %}">Conservar reserva</a></div>
+  </form>
+  {% else %}<p class="mt-4 text-zinc-400">Esta reserva ya no permite una cancelación. Consulta su estado y el resultado del pago.</p><a class="mt-5 inline-block text-amber-400 underline" href="{% url 'reservas:detalle' cita.pk %}">Volver a mi reserva</a>{% endif %}
+</section>
+{% endblock %}

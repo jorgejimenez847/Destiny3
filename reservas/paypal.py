@@ -11,7 +11,7 @@ API = "https://api-m.sandbox.paypal.com"
 class PayPalError(Exception):
     def __init__(
         self,
-        mensaje="PayPal Sandbox no está disponible. Inténtalo nuevamente.",
+        mensaje="PayPal no está disponible. Inténtalo nuevamente.",
         *,
         recuperable=True,
         codigo="CONEXION",
@@ -31,7 +31,7 @@ class PayPalClient:
             )
         if not settings.PAYPAL_CLIENT_ID or not settings.PAYPAL_CLIENT_SECRET:
             raise PayPalError(
-                "Falta configurar PayPal Sandbox en el servidor.",
+                "Falta configurar PayPal en el servidor.",
                 recuperable=False,
                 codigo="CONFIGURACION",
             )
@@ -50,14 +50,16 @@ class PayPalClient:
                 )
                 if respuesta.status_code != 200:
                     raise PayPalError(
-                        "No se pudo autenticar con PayPal Sandbox.",
+                        "No se pudo autenticar con PayPal.",
                         recuperable=respuesta.status_code >= 500
                         or respuesta.status_code == 429,
                         codigo="AUTENTICACION",
                     )
-                self.token = respuesta.json().get("access_token")
-                if not self.token:
+                datos = respuesta.json()
+                token = datos.get("access_token") if isinstance(datos, dict) else None
+                if not isinstance(token, str) or not token.strip():
                     raise PayPalError()
+                self.token = token
             headers = {
                 "Authorization": "Bearer " + self.token,
                 "Content-Type": "application/json",
@@ -90,7 +92,7 @@ class PayPalClient:
                     if conocido in issues:
                         codigo = conocido
                 raise PayPalError(
-                    "PayPal Sandbox no pudo completar la operación.",
+                    "PayPal no pudo completar la operación.",
                     recuperable=respuesta.status_code >= 500
                     or respuesta.status_code in [409, 429]
                     or codigo
@@ -130,7 +132,7 @@ class PayPalClient:
                     {
                         "reference_id": str(cita.pk),
                         "custom_id": str(cita.pk),
-                        "description": "Destiny 3 - reserva de prueba",
+                        "description": "Destiny 3 - reserva",
                         "amount": {
                             "currency_code": "USD",
                             "value": format(cita.precio, ".2f"),
@@ -140,7 +142,7 @@ class PayPalClient:
                 "payment_source": {
                     "paypal": {
                         "experience_context": {
-                            "brand_name": "Destiny 3 Sandbox",
+                            "brand_name": "Destiny 3",
                             "shipping_preference": "NO_SHIPPING",
                             "user_action": "PAY_NOW",
                             "return_url": f"{base}/reservas/{cita.pk}/retorno/",
@@ -172,10 +174,18 @@ class PayPalClient:
 
 
 def enlace_aprobacion(orden):
-    for link in orden.get("links", []):
+    links = orden.get("links", []) if isinstance(orden, dict) else []
+    for link in links if isinstance(links, list) else []:
+        if not isinstance(link, dict):
+            continue
         if link.get("rel") in ["approve", "payer-action"]:
             url = link.get("href", "")
-            parsed = urlparse(url)
+            if not isinstance(url, str):
+                continue
+            try:
+                parsed = urlparse(url)
+            except ValueError:
+                continue
             if (
                 parsed.scheme == "https"
                 and parsed.hostname in ["www.sandbox.paypal.com", "sandbox.paypal.com"]
@@ -183,4 +193,4 @@ def enlace_aprobacion(orden):
                 and not parsed.password
             ):
                 return url
-    raise PayPalError("PayPal no devolvió un enlace de aprobación Sandbox válido.")
+    raise PayPalError("PayPal no devolvió un enlace de aprobación válido.")

@@ -68,3 +68,14 @@ class DisponibilidadForm(EstiloForm, forms.Form):
         if fecha < timezone.localdate():
             raise forms.ValidationError("Selecciona hoy o una fecha futura.")
         return fecha
+
+
+class FiltroBarberosForm(EstiloForm, forms.Form):
+    q = forms.CharField(label="Buscar nombre o especialidad", max_length=100, required=False)
+    activo = forms.ChoiceField(label="Perfil", required=False, choices=[("", "Todos los perfiles"), ("si", "Activos"), ("no", "Inactivos")])
+    servicio = forms.ModelChoiceField(queryset=None, required=False, empty_label="Todos los servicios")
+
+    def __init__(self, *args, **kwargs):
+        from servicios.models import Servicio
+        super().__init__(*args, **kwargs)
+        self.fields["servicio"].queryset = Servicio.objects.all()

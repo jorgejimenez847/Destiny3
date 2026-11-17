@@ -1,0 +1,7 @@
+{% if pagina.has_other_pages %}
+<nav aria-label="Páginas" class="mt-6 flex flex-wrap items-center gap-4 text-sm">
+  {% if pagina.has_previous %}<a class="text-amber-400 underline" href="?{{ parametros }}&amp;pagina={{ pagina.previous_page_number }}">Anterior</a>{% endif %}
+  <span class="text-zinc-400">Página {{ pagina.number }} de {{ pagina.paginator.num_pages }}</span>
+  {% if pagina.has_next %}<a class="text-amber-400 underline" href="?{{ parametros }}&amp;pagina={{ pagina.next_page_number }}">Siguiente</a>{% endif %}
+</nav>
+{% endif %}

@@ -24,3 +24,6 @@ theme/static/css/dist/
 .vscode/
 .idea/
 .DS_Store
+
+# Pruebas visuales locales
+/pruebas_visuales/

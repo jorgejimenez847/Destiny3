@@ -14,6 +14,7 @@ from usuarios.models import Usuario
 from reservas.models import Cita, Pago
 from reservas.servicios import (
     crear_cita,
+    cambiar_estado_operativo,
     cancelar_cita,
     expirar_retenciones,
     registrar_latido,
@@ -150,3 +151,81 @@ class ConcurrenciaReservaTests(TransactionTestCase):
             api.capturar.assert_called_once()
         cita.refresh_from_db()
         self.assertEqual(cita.estado, Cita.Estado.CONFIRMADA)
+
+    def confirmar_para_atencion(self):
+        cita = self.reservar()
+        Pago.objects.filter(cita=cita).update(
+            orden_id="ORDEN-ESTADOS", estado=Pago.Estado.CREADO
+        )
+        orden = {
+            "id": "ORDEN-ESTADOS",
+            "intent": "CAPTURE",
+            "status": "COMPLETED",
+            "purchase_units": [
+                {
+                    "reference_id": str(cita.pk),
+                    "custom_id": str(cita.pk),
+                    "amount": {"value": "8.00", "currency_code": "USD"},
+                    "payments": {
+                        "captures": [
+                            {
+                                "id": "CAPTURA-ESTADOS",
+                                "status": "COMPLETED",
+                                "amount": {"value": "8.00", "currency_code": "USD"},
+                            }
+                        ]
+                    },
+                }
+            ],
+        }
+        with patch("reservas.servicios.PayPalClient") as factory:
+            factory._id.side_effect = lambda valor: valor
+            factory.return_value.consultar.return_value = orden
+            procesar_pago(cita.pk)
+        return cita
+
+    def test_cambios_operativos_repetidos_en_paralelo_registran_un_solo_evento(self):
+        cita = self.confirmar_para_atencion()
+        actor = self.barbero.usuario
+        with patch("reservas.servicios.timezone", wraps=timezone) as reloj:
+            reloj.now.return_value = momento(10)
+            self.paralelo(
+                [
+                    lambda: cambiar_estado_operativo(
+                        cita.pk, Cita.Estado.EN_ATENCION, actor
+                    ),
+                    lambda: cambiar_estado_operativo(
+                        cita.pk, Cita.Estado.EN_ATENCION, actor
+                    ),
+                ]
+            )
+        cita.refresh_from_db()
+        self.assertEqual(cita.estado, Cita.Estado.EN_ATENCION)
+        self.assertEqual(cita.eventos.filter(nuevo=Cita.Estado.EN_ATENCION).count(), 1)
+
+    def test_transiciones_incompatibles_en_paralelo_solo_aplican_una(self):
+        cita = self.confirmar_para_atencion()
+        actor = self.barbero.usuario
+
+        def intentar(estado):
+            try:
+                cambiar_estado_operativo(cita.pk, estado, actor)
+                return "aplicada"
+            except ValidationError:
+                return "rechazada"
+
+        with patch("reservas.servicios.timezone", wraps=timezone) as reloj:
+            reloj.now.return_value = momento(10)
+            resultados = self.paralelo(
+                [
+                    lambda: intentar(Cita.Estado.EN_ATENCION),
+                    lambda: intentar(Cita.Estado.NO_ASISTIO),
+                ]
+            )
+        self.assertCountEqual(resultados, ["aplicada", "rechazada"])
+        self.assertEqual(
+            cita.eventos.filter(
+                nuevo__in=[Cita.Estado.EN_ATENCION, Cita.Estado.NO_ASISTIO]
+            ).count(),
+            1,
+        )

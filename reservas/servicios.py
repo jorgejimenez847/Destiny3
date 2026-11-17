@@ -12,6 +12,32 @@ from .models import Cita, EstadoProcesador, EventoCita, Pago
 from .paypal import PayPalClient, PayPalError, enlace_aprobacion
 
 PENDIENTE = Cita.Estado.PENDIENTE
+TRANSICIONES_OPERATIVAS = {
+    Cita.Estado.CONFIRMADA: (Cita.Estado.EN_ATENCION, Cita.Estado.NO_ASISTIO),
+    Cita.Estado.EN_ATENCION: (Cita.Estado.COMPLETADA,),
+}
+
+
+def _puede_atender(cita, actor):
+    return (
+        actor.is_authenticated
+        and actor.is_active
+        and (
+            actor.rol == "ADMIN"
+            or (actor.rol == "BARBERO" and cita.barbero.usuario_id == actor.pk)
+        )
+    )
+
+
+def estados_operativos_permitidos(cita, actor):
+    if not _puede_atender(cita, actor):
+        return []
+    if cita.pago.estado != Pago.Estado.COMPLETADO or timezone.now() < cita.inicio:
+        return []
+    return [
+        (estado, Cita.Estado(estado).label)
+        for estado in TRANSICIONES_OPERATIVAS.get(cita.estado, ())
+    ]
 
 
 def registrar_latido():
@@ -44,8 +70,7 @@ def _transicionar(cita, nuevo, motivo, actor=None):
             Cita.Estado.EXPIRADA,
             Cita.Estado.PAGO_FALLIDO,
         },
-        Cita.Estado.CONFIRMADA: {Cita.Estado.EN_ATENCION, Cita.Estado.NO_ASISTIO},
-        Cita.Estado.EN_ATENCION: {Cita.Estado.COMPLETADA},
+        **TRANSICIONES_OPERATIVAS,
     }
     if nuevo == cita.estado:
         return
@@ -72,7 +97,9 @@ def _expirar(cita, pago):
             cita, Cita.Estado.EXPIRADA, "Venció la retención sin una captura iniciada."
         )
         pago.estado = Pago.Estado.CERRADO
+        pago.detalle = pago.detalle_actual
         pago.procesando_hasta = None
+        pago.proxima_revision = None
         pago.save()
         return True
     return False
@@ -103,7 +130,7 @@ def crear_cita(
     solicitud_id,
     precio_esperado,
     *,
-    duracion_esperada=None
+    duracion_esperada=None,
 ):
     if not cliente.is_active or cliente.rol != "CLIENTE":
         raise PermissionDenied
@@ -143,6 +170,7 @@ def crear_cita(
         servicio=servicio,
         ocupacion=ocupacion,
         solicitud_id=solicitud_id,
+        cliente_nombre=cliente.get_full_name().strip() or cliente.username,
         servicio_nombre=servicio.nombre,
         barbero_nombre=str(barbero),
         inicio=inicio,
@@ -157,32 +185,45 @@ def crear_cita(
     EventoCita.objects.create(
         cita=cita,
         nuevo=PENDIENTE,
-        motivo="Selección confirmada; horario retenido para pago Sandbox.",
+        motivo="Selección confirmada; horario retenido para el pago.",
         actor=cliente,
     )
     return cita
 
 
 @transaction.atomic
-def cancelar_cita(cita_id, actor):
+def cancelar_cita(cita_id, actor, motivo=None):
     cita, pago = _bloquear(cita_id)
-    if actor.rol != "CLIENTE" or cita.cliente_id != actor.pk:
+    if (
+        not actor.is_authenticated
+        or not actor.is_active
+        or actor.rol != "CLIENTE"
+        or cita.cliente_id != actor.pk
+    ):
         raise PermissionDenied
     _expirar(cita, pago)
     if cita.estado in [Cita.Estado.CANCELADA, Cita.Estado.EXPIRADA]:
         return cita
     if cita.estado != PENDIENTE:
-        raise ValidationError(
-            "Solo se pueden cancelar reservas pendientes de pago."
-        )
+        raise ValidationError("Solo se pueden cancelar reservas pendientes de pago.")
     if pago.captura_solicitada_en is not None:
         raise ValidationError(
             "El pago está en verificación. Espera su resultado antes de cancelar."
         )
+    if timezone.now() >= cita.inicio:
+        raise ValidationError("No se puede cancelar una cita que ya comenzó.")
+    motivo = "Solicitud del cliente." if motivo is None else motivo.strip()
+    if not motivo or len(motivo) > 180:
+        raise ValidationError(
+            "Indica un motivo de cancelación de hasta 180 caracteres."
+        )
     _transicionar(
-        cita, Cita.Estado.CANCELADA, "El cliente canceló antes de la captura.", actor
+        cita, Cita.Estado.CANCELADA, f"Cancelación del cliente: {motivo}", actor
     )
     pago.estado = Pago.Estado.CERRADO
+    pago.detalle = pago.detalle_actual
+    pago.procesando_hasta = None
+    pago.proxima_revision = None
     pago.save()
     return cita
 
@@ -190,9 +231,7 @@ def cancelar_cita(cita_id, actor):
 @transaction.atomic
 def cambiar_estado_operativo(cita_id, nuevo, actor):
     cita, pago = _bloquear(cita_id)
-    autorizado = actor.rol == "ADMIN" or (
-        actor.rol == "BARBERO" and cita.barbero.usuario_id == actor.pk
-    )
+    autorizado = _puede_atender(cita, actor)
     if not autorizado or nuevo not in [
         Cita.Estado.EN_ATENCION,
         Cita.Estado.COMPLETADA,
@@ -244,8 +283,13 @@ def preparar_orden(cita_id, actor):
         with transaction.atomic():
             cita, pago = _bloquear(cita_id)
             pago.procesando_hasta = None
-            pago.estado = Pago.Estado.NUEVO if exc.recuperable else Pago.Estado.FALLIDO
-            pago.detalle = "No se pudo preparar la orden de prueba."
+            if cita.estado != PENDIENTE:
+                pago.estado = Pago.Estado.CERRADO
+                pago.detalle = pago.detalle_actual
+                pago.proxima_revision = None
+            else:
+                pago.estado = Pago.Estado.NUEVO if exc.recuperable else Pago.Estado.FALLIDO
+                pago.detalle = "No se pudo preparar la orden de pago."
             pago.save()
             if not exc.recuperable and cita.estado == PENDIENTE:
                 _transicionar(cita, Cita.Estado.PAGO_FALLIDO, pago.detalle)
@@ -372,7 +416,7 @@ def procesar_pago(cita_id):
                 or exc.codigo == "INSTRUMENT_DECLINED"
             ):
                 pago.estado = Pago.Estado.FALLIDO
-                pago.detalle = "PayPal rechazó el pago de prueba."
+                pago.detalle = "PayPal rechazó el pago."
                 pago.procesando_hasta = None
                 pago.save()
                 if cita.estado == PENDIENTE:
@@ -380,7 +424,7 @@ def procesar_pago(cita_id):
             else:
                 _revision(
                     pago,
-                    "Verificando el resultado con PayPal Sandbox; no se duplicará el cobro.",
+                    "Verificando el resultado con PayPal; no se duplicará el cobro.",
                 )
         return cita
     except IntegrityError:
@@ -397,6 +441,8 @@ def _aplicar_resultado(cita_id, orden):
     requiere_reembolso = False
     with transaction.atomic():
         cita, pago = _bloquear(cita_id)
+        if pago.estado in [Pago.Estado.COMPLETADO, Pago.Estado.REEMBOLSADO]:
+            return cita
         captura = _captura(orden)
         if (
             cita.estado != PENDIENTE
@@ -437,7 +483,7 @@ def _aplicar_resultado(cita_id, orden):
             )
             if importe == cita.precio and moneda == "USD" and vigente:
                 pago.estado = Pago.Estado.COMPLETADO
-                pago.detalle = "Pago Sandbox verificado y capturado."
+                pago.detalle = "Pago confirmado correctamente."
                 pago.save()
                 _transicionar(cita, Cita.Estado.CONFIRMADA, pago.detalle)
             elif (
@@ -448,7 +494,7 @@ def _aplicar_resultado(cita_id, orden):
             else:
                 pago.estado = Pago.Estado.REEMBOLSO_PENDIENTE
                 pago.detalle = (
-                    "El pago no puede confirmar esta reserva; se devolverá en Sandbox."
+                    "El pago no puede confirmar esta reserva; se devolverá el importe."
                 )
                 pago.save()
                 if cita.estado == PENDIENTE:
@@ -461,7 +507,7 @@ def _aplicar_resultado(cita_id, orden):
         ):
             pago.estado = Pago.Estado.FALLIDO
             pago.procesando_hasta = None
-            pago.detalle = "El pago de prueba fue rechazado."
+            pago.detalle = "El pago fue rechazado."
             pago.save()
             if cita.estado == PENDIENTE:
                 _transicionar(cita, Cita.Estado.PAGO_FALLIDO, pago.detalle)
@@ -472,10 +518,10 @@ def _aplicar_resultado(cita_id, orden):
             pago.estado = Pago.Estado.CREADO
             pago.procesando_hasta = None
             pago.proxima_revision = timezone.now() + timedelta(seconds=15)
-            pago.detalle = "Falta aprobar la orden en PayPal Sandbox."
+            pago.detalle = "Falta aprobar la orden en PayPal."
             pago.save()
         else:
-            _revision(pago, "PayPal todavía está procesando el resultado de prueba.")
+            _revision(pago, "PayPal todavía está procesando el pago.")
     if requiere_reembolso:
         return _reembolsar(cita_id)
     return cita
@@ -505,7 +551,7 @@ def _reembolsar(cita_id):
         if completo:
             pago.estado = Pago.Estado.REEMBOLSADO
             pago.reembolso_id = referencia
-            pago.detalle = "Pago de prueba devuelto; la cita no fue confirmada."
+            pago.detalle = "Pago devuelto; la cita no fue confirmada."
             EventoCita.objects.create(
                 cita=cita, anterior=cita.estado, nuevo=cita.estado, motivo=pago.detalle
             )

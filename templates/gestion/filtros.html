@@ -1,0 +1,14 @@
+<form method="get" class="mb-6 rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
+  {% if filtros.non_field_errors %}<div role="alert" class="mb-4 text-amber-300">{{ filtros.non_field_errors }}</div>{% endif %}
+  <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    {% for field in filtros %}
+    <div><label for="{{ field.id_for_label }}" class="mb-2 block text-sm text-zinc-300">{{ field.label }}</label>{{ field }}
+      {% for error in field.errors %}<p role="alert" class="mt-1 text-sm text-amber-300">{{ error }}</p>{% endfor %}
+    </div>
+    {% endfor %}
+  </div>
+  <div class="mt-4 flex flex-wrap items-center gap-4">
+    <button class="rounded-lg bg-amber-500 px-4 py-2 font-semibold text-zinc-950 hover:bg-amber-400">Filtrar</button>
+    <a class="text-sm text-amber-400 underline" href="?">Limpiar filtros</a>
+  </div>
+</form>

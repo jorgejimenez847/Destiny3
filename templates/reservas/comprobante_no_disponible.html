@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Comprobante no disponible{% endblock %}
+{% block content %}
+<section class="mx-auto max-w-2xl rounded-2xl border border-zinc-800 bg-zinc-900 p-6 md:p-8">
+  <h1 class="text-2xl font-bold">Comprobante no disponible</h1>
+  {% if cita %}
+    <p role="alert" class="mt-3 text-zinc-300">Esta reserva no tiene un comprobante disponible. Solo puedes descargarlo cuando el pago esté confirmado y verificado.</p>
+    <p class="mt-3 text-sm text-zinc-400">Consulta el estado de tu reserva para conocer los detalles del pago.</p>
+    <a class="mt-6 inline-block text-amber-400 underline" href="{% url 'reservas:detalle' cita.pk %}">Volver a mi reserva</a>
+  {% else %}
+    <p role="alert" class="mt-3 text-zinc-300">No encontramos un comprobante disponible para tu cuenta.</p>
+    <a class="mt-6 inline-block text-amber-400 underline" href="{% url 'reservas:lista' %}">Volver a mis reservas</a>
+  {% endif %}
+</section>
+{% endblock %}

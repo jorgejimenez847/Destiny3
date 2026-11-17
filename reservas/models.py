@@ -2,6 +2,7 @@ import uuid
 from django.conf import settings
 from django.db import models
 from django.db.models import F, Q
+from django.utils import timezone
 
 
 class Cita(models.Model):
@@ -25,6 +26,7 @@ class Cita(models.Model):
     ocupacion = models.OneToOneField(
         "barberos.Ocupacion", on_delete=models.PROTECT, related_name="cita"
     )
+    cliente_nombre = models.CharField(max_length=301, default="", editable=False)
     servicio_nombre = models.CharField(max_length=100)
     barbero_nombre = models.CharField(max_length=300)
     inicio = models.DateTimeField()
@@ -67,6 +69,63 @@ class Cita(models.Model):
         ]
         indexes = [models.Index(fields=["estado", "expira_en"])]
 
+    @property
+    def puede_cancelarse(self):
+        try:
+            pago = self.pago
+        except Pago.DoesNotExist:
+            return False
+        ahora = timezone.now()
+        return (
+            self.estado == self.Estado.PENDIENTE
+            and ahora < min(self.expira_en, self.inicio)
+            and pago.captura_solicitada_en is None
+            and pago.estado
+            not in {
+                Pago.Estado.COMPLETADO,
+                Pago.Estado.REEMBOLSO_PENDIENTE,
+                Pago.Estado.REEMBOLSADO,
+            }
+        )
+
+    @property
+    def numero_comprobante(self):
+        return f"D3-{self.pk.hex.upper()}"
+
+    @property
+    def fecha_comprobante(self):
+        return next(
+            (
+                evento.fecha
+                for evento in self.eventos.all()
+                if evento.nuevo == self.Estado.CONFIRMADA
+            ),
+            None,
+        )
+
+    @property
+    def comprobante_disponible(self):
+        try:
+            pago = self.pago
+        except Pago.DoesNotExist:
+            return False
+        return bool(
+            self.estado
+            in {
+                self.Estado.CONFIRMADA,
+                self.Estado.EN_ATENCION,
+                self.Estado.COMPLETADA,
+                self.Estado.NO_ASISTIO,
+            }
+            and pago.estado == Pago.Estado.COMPLETADO
+            and pago.captura_id
+            and not pago.reembolso_id
+            and pago.importe_capturado == self.precio
+            and pago.moneda_capturada == self.moneda == "USD"
+            and self.cliente_nombre
+            and self.fecha_comprobante
+        )
+
     def __str__(self):
         return f"{self.servicio_nombre} · {self.get_estado_display()}"
 
@@ -80,8 +139,8 @@ class Pago(models.Model):
         VERIFICANDO = "VERIFICANDO", "Verificando pago"
         COMPLETADO = "COMPLETADO", "Pago completado"
         FALLIDO = "FALLIDO", "Pago rechazado"
-        REEMBOLSO_PENDIENTE = "REEMBOLSO_PENDIENTE", "Reembolso de prueba pendiente"
-        REEMBOLSADO = "REEMBOLSADO", "Reembolso de prueba completado"
+        REEMBOLSO_PENDIENTE = "REEMBOLSO_PENDIENTE", "Reembolso pendiente"
+        REEMBOLSADO = "REEMBOLSADO", "Reembolso completado"
 
     cita = models.OneToOneField(Cita, on_delete=models.PROTECT, related_name="pago")
     estado = models.CharField(
@@ -108,6 +167,16 @@ class Pago(models.Model):
     moneda_capturada = models.CharField(max_length=3, blank=True)
     detalle = models.CharField(max_length=200, blank=True)
     actualizada_en = models.DateTimeField(auto_now=True)
+
+
+    @property
+    def detalle_actual(self):
+        if self.estado == self.Estado.CERRADO:
+            return {
+                Cita.Estado.CANCELADA: "La reserva se canceló sin realizar un cobro.",
+                Cita.Estado.EXPIRADA: "El plazo de pago venció sin realizar un cobro.",
+            }.get(self.cita.estado, self.detalle)
+        return self.detalle
 
 
 class EventoCita(models.Model):

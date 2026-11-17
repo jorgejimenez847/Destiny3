@@ -3,17 +3,19 @@ from datetime import timedelta
 from decimal import Decimal
 from django.contrib import messages
 from django.core import signing
+from django.core.paginator import Paginator
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
-from django.http import HttpResponseBadRequest
+from django.http import Http404, HttpResponse, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.cache import never_cache
 from django.utils.dateparse import parse_datetime
 from barberos.disponibilidad import validar_intervalo
 from barberos.models import PerfilBarbero
 from servicios.models import Servicio
 from usuarios.permisos import rol_requerido
-from .forms import ConfirmacionForm, SeleccionForm
+from .forms import CancelacionForm, ConfirmacionForm, SeleccionForm
 from .models import Cita
 from .servicios import (
     cancelar_cita,
@@ -28,15 +30,22 @@ SALT = "reservas.seleccion"
 
 def _propia(request, pk):
     return get_object_or_404(
-        Cita.objects.select_related("pago", "ocupacion"), pk=pk, cliente=request.user
+        Cita.objects.select_related("pago", "ocupacion").prefetch_related("eventos"),
+        pk=pk,
+        cliente=request.user,
     )
 
 
 @rol_requerido("CLIENTE")
 @require_GET
 def lista(request):
-    citas = Cita.objects.filter(cliente=request.user).select_related("pago")[:20]
-    return render(request, "reservas/lista.html", {"citas": citas})
+    consulta = (
+        Cita.objects.filter(cliente=request.user)
+        .select_related("pago")
+        .prefetch_related("eventos")
+    )
+    pagina = Paginator(consulta, 20).get_page(request.GET.get("pagina"))
+    return render(request, "reservas/lista.html", {"citas": pagina, "pagina": pagina})
 
 
 @rol_requerido("CLIENTE")
@@ -118,7 +127,7 @@ def confirmar(request):
         return redirect("barberos:disponibilidad")
     if cita.estado == Cita.Estado.PENDIENTE:
         messages.success(
-            request, "Horario retenido. Completa el pago Sandbox antes de que expire."
+            request, "Horario retenido. Completa el pago antes de que expire."
         )
     else:
         messages.info(
@@ -175,18 +184,54 @@ def verificar(request, pk):
 @require_GET
 def cancelar_pago(request, pk):
     cita = _propia(request, pk)
-    return render(request, "reservas/cancelar.html", {"cita": cita})
+    return render(
+        request, "reservas/cancelar.html", {"cita": cita, "form": CancelacionForm()}
+    )
 
 
 @rol_requerido("CLIENTE")
 @require_POST
 def cancelar(request, pk):
-    _propia(request, pk)
-    try:
-        cancelar_cita(pk, request.user)
-        messages.success(
-            request, "La reserva pendiente se canceló y su horario quedó libre."
+    cita = _propia(request, pk)
+    form = CancelacionForm(request.POST)
+    if not form.is_valid():
+        return render(
+            request, "reservas/cancelar.html", {"cita": cita, "form": form}, status=400
         )
+    try:
+        cita = cancelar_cita(pk, request.user, form.cleaned_data["motivo"])
+        if cita.estado == Cita.Estado.EXPIRADA:
+            messages.info(request, "El plazo de pago venció y el horario quedó libre.")
+        else:
+            messages.success(request, "La reserva se canceló y su horario quedó libre.")
     except ValidationError as exc:
         messages.error(request, "; ".join(exc.messages))
     return redirect("reservas:detalle", pk=pk)
+
+
+@never_cache
+@rol_requerido("CLIENTE")
+@require_GET
+def comprobante(request, pk):
+    try:
+        cita = _propia(request, pk)
+    except Http404:
+        return render(request, "reservas/comprobante_no_disponible.html", status=404)
+    if not cita.comprobante_disponible:
+        return render(
+            request, "reservas/comprobante_no_disponible.html", {"cita": cita}, status=409
+        )
+    try:
+        from .comprobantes import generar_pdf
+
+        contenido = generar_pdf(cita)
+    except Exception:
+        return render(
+            request, "reservas/comprobante_error.html", {"cita": cita}, status=503
+        )
+    respuesta = HttpResponse(contenido, content_type="application/pdf")
+    respuesta["Content-Disposition"] = (
+        f'attachment; filename="comprobante-{cita.numero_comprobante}.pdf"'
+    )
+    respuesta["X-Content-Type-Options"] = "nosniff"
+    return respuesta

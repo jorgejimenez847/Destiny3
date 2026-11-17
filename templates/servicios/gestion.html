@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Gestionar servicios{% endblock %}
+{% block content %}
+<a class="text-sm text-amber-400 underline" href="{% url 'usuarios:panel_admin' %}">Volver al panel</a>
+<div class="mb-6 mt-4 flex flex-wrap items-center justify-between gap-4"><h1 class="text-3xl font-bold">Servicios</h1><a class="rounded-lg bg-amber-500 px-4 py-2 font-semibold text-zinc-950" href="{% url 'servicios:crear' %}">Nuevo servicio</a></div>
+{% include "gestion/filtros.html" %}
+<div class="grid gap-4 md:grid-cols-2">
+{% for servicio in servicios %}
+  <article class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+    <p class="text-sm text-amber-400">{% if servicio.activo %}Activo{% else %}Inactivo{% endif %}</p>
+    <h2 class="mt-2 text-xl font-semibold">{{ servicio.nombre }}</h2><p class="mt-2 text-zinc-400">{{ servicio.descripcion }}</p>
+    <p class="mt-3">{{ servicio.duracion_minutos }} min · USD {{ servicio.precio|floatformat:2 }}</p>
+    <a class="mt-4 inline-block text-amber-400 underline" href="{% url 'servicios:editar' servicio.pk %}">Editar servicio</a>
+  </article>
+{% empty %}<p class="rounded-xl border border-zinc-800 p-6 text-zinc-400">No hay servicios para los filtros seleccionados.</p>{% endfor %}
+</div>
+{% include "gestion/paginacion.html" %}
+{% endblock %}

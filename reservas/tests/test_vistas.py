@@ -127,7 +127,7 @@ class VistasReservaTests(ReservaTestCase):
         )
         cita.refresh_from_db()
         self.assertEqual(cita.estado, "PENDIENTE")
-        self.client.post(reverse("reservas:cancelar", args=[cita.pk]))
+        self.client.post(reverse("reservas:cancelar", args=[cita.pk]), {"motivo": "Cambio de planes"})
         cita.refresh_from_db()
         self.assertEqual(cita.estado, "CANCELADA")
 

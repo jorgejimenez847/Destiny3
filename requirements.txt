@@ -16,11 +16,13 @@ MarkupSafe==3.0.3
 mdurl==0.1.2
 psycopg2-binary==2.9.13
 Pygments==2.21.0
+pypdf==6.21.1
 pytailwindcss==0.3.1
 python-dateutil==2.9.0.post0
 python-decouple==3.8
 python-slugify==9.1.1
 PyYAML==6.0.3
+reportlab==5.0.1
 requests==2.34.2
 rich==15.0.0
 six==1.17.0

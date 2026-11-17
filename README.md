@@ -12,8 +12,10 @@ Python 3.12/3.13, Django 5.2, PostgreSQL 16 y Tailwind CSS Standalone.
 - Fase 2: perfiles de barberos, servicios asignados, turnos, descansos, ausencias y días bloqueados.
 - Fase 3: disponibilidad calculada y prevención de solapamientos en servidor y PostgreSQL.
 - Fase 4: selección, resumen, retención temporal, pago PayPal Sandbox, confirmación y transiciones de estado.
+- Fase 5: historial del cliente, cancelación de reservas pendientes y comprobantes de reserva en PDF.
+- Fase 6: agenda del barbero, gestión administrativa de reservas, cuentas y servicios, e indicadores del dashboard.
 
-La administración de perfiles y horarios requiere rol Administrador. Cada barbero consulta sus propios datos. Las reservas y sus pagos solo son accesibles para el cliente propietario. Los paneles avanzados, la cancelación de citas pagadas, los comprobantes y las demás funciones de las fases 5 y 6 quedan fuera de esta entrega.
+El cliente consulta sus propias reservas y descarga sus comprobantes. El barbero consulta su agenda y actualiza la atención de sus citas; el administrador gestiona reservas, cuentas, servicios, perfiles y horarios. La cancelación por el cliente está disponible solo mientras el pago siga pendiente y no haya comenzado su verificación. La cancelación de citas pagadas queda pendiente de definir.
 
 ## Instalación
 
@@ -96,17 +98,17 @@ python manage.py procesar_retenciones
 2. Selecciona servicio, barbero compatible y fecha; elige un horario.
 3. Revisa el resumen y confirma. El servidor vuelve a comprobar la disponibilidad y retiene el intervalo durante un máximo de diez minutos.
 4. Abre PayPal Sandbox y aprueba con la cuenta compradora ficticia.
-5. El procesador verifica la orden, captura el pago y confirma la cita. Al volver al sitio también puedes pulsar Verificar pago. Mis reservas permite consultar el resultado y la actividad de esa cita.
+5. El procesador verifica la orden, captura el pago y confirma la cita. Al volver al sitio también puedes pulsar Verificar pago. En Mis reservas puedes consultar el resultado, la actividad de la cita y descargar el comprobante cuando corresponda.
 
 La disponibilidad descuenta duración real, turnos, descansos, bloqueos y ocupaciones activas. Dos intervalos adyacentes son válidos; los intervalos superpuestos se rechazan mediante transacciones y una exclusión GiST de PostgreSQL.
 
 Cancelar antes de la captura o dejar vencer la retención libera el horario. Si una captura queda incierta por una desconexión, el intervalo permanece protegido hasta conocer el resultado; no se cobra otra vez ni se libera un posible pago. Los reintentos utilizan los mismos identificadores de PayPal. Un pago tardío que no pueda confirmar su cita se devuelve en Sandbox, sin afectar una reserva nueva. Si PayPal está caído, la verificación o devolución queda pendiente y se reintenta.
 
-Los estados de atención están definidos con transiciones controladas para Administrador o barbero asignado; la interfaz completa de agenda de atención se desarrollará en Fase 6. La recuperación de contraseña usa correo por consola en desarrollo.
+El administrador o el barbero asignado pueden actualizar la atención cuando llegue la hora de una cita pagada: Confirmada → En atención → Completada, o Confirmada → No asistió. La recuperación de contraseña usa correo por consola en desarrollo.
 
 ## Pruebas y diagnóstico
 
-Última validación: 126 pruebas aprobadas en PostgreSQL y un pago completo verificado en PayPal Sandbox. La revisión visual en navegador y móvil queda pendiente.
+Las pruebas se ejecutan en PostgreSQL y simulan las respuestas externas de PayPal. Una compra completa debe comprobarse aparte en Sandbox.
 
 ```powershell
 python manage.py check

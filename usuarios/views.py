@@ -48,7 +48,21 @@ class PanelBarberoView(RolRequeridoMixin, TemplateView):
     template_name = "usuarios/panel_barbero.html"
     roles_permitidos = [Usuario.Rol.BARBERO]
 
+    def get_context_data(self, **kwargs):
+        from reservas.consultas import contexto_agenda
+
+        contexto = super().get_context_data(**kwargs)
+        contexto.update(contexto_agenda(self.request.user, self.request.GET))
+        return contexto
+
 
 class PanelAdminView(RolRequeridoMixin, TemplateView):
     template_name = "usuarios/panel_admin.html"
     roles_permitidos = [Usuario.Rol.ADMIN]
+
+    def get_context_data(self, **kwargs):
+        from reservas.consultas import resumen_dashboard
+
+        contexto = super().get_context_data(**kwargs)
+        contexto.update(resumen_dashboard())
+        return contexto

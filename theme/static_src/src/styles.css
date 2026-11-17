@@ -8,3 +8,13 @@
   * the scope of this path.
   */
 @source "../../../**/*.{html,py,js}";
+
+input:is([type="date"], [type="time"], [type="datetime-local"]) {
+  color-scheme: dark;
+}
+
+input:is([type="date"], [type="time"], [type="datetime-local"])::-webkit-calendar-picker-indicator {
+  opacity: 1;
+  filter: brightness(0) invert(1);
+  cursor: pointer;
+}

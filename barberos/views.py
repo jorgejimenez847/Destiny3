@@ -2,18 +2,34 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
+from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_http_methods
 from usuarios.models import Usuario
 from usuarios.permisos import rol_requerido
-from .forms import BloqueoForm, HorarioForm, PerfilForm
+from .forms import BloqueoForm, FiltroBarberosForm, HorarioForm, PerfilForm
 from .models import Bloqueo, Horario, PerfilBarbero
 
 
 @rol_requerido(Usuario.Rol.ADMIN)
+@require_http_methods(["GET"])
 def gestion(request):
     perfiles = PerfilBarbero.objects.select_related("usuario").prefetch_related("servicios")
-    return render(request, "barberos/gestion.html", {"perfiles": perfiles})
+    form = FiltroBarberosForm(request.GET)
+    if form.is_valid():
+        datos = form.cleaned_data
+        if datos["q"]:
+            perfiles = perfiles.filter(
+                Q(usuario__username__icontains=datos["q"]) | Q(usuario__first_name__icontains=datos["q"])
+                | Q(usuario__last_name__icontains=datos["q"]) | Q(especialidad__icontains=datos["q"])
+            )
+        if datos["activo"]:
+            perfiles = perfiles.filter(activo=datos["activo"] == "si")
+        if datos["servicio"]:
+            perfiles = perfiles.filter(servicios=datos["servicio"])
+    else:
+        perfiles = perfiles.none()
+    return render(request, "barberos/gestion.html", {"perfiles": perfiles, "filtros": form})
 
 
 @rol_requerido(Usuario.Rol.ADMIN)

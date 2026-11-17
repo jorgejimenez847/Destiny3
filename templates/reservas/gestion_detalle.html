@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% load reservas_tags %}
+{% block title %}Gestionar cita{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-3xl">
+  <a class="text-sm text-amber-400 underline" href="{% if user.rol == 'ADMIN' %}{% url 'reservas:gestion' %}{% else %}{% url 'usuarios:panel_barbero' %}{% endif %}">Volver a la agenda</a>
+  <section class="mt-5 rounded-2xl border border-zinc-800 bg-zinc-900 p-6 md:p-8">
+    <p class="text-sm text-amber-400">{{ cita.get_estado_display }}</p>
+    <h1 class="mt-2 text-3xl font-bold">{{ cita.servicio_nombre }}</h1>
+    <dl class="mt-6 grid gap-5 sm:grid-cols-2">
+      <div><dt class="text-sm text-zinc-400">Cliente</dt><dd class="mt-1">{{ cita.cliente_nombre|default:cita.cliente.username }}</dd></div>
+      <div><dt class="text-sm text-zinc-400">Barbero</dt><dd class="mt-1">{{ cita.barbero_nombre }}</dd></div>
+      <div><dt class="text-sm text-zinc-400">Fecha y horario</dt><dd class="mt-1">{{ cita.inicio|date:"d/m/Y" }} · {{ cita.inicio|date:"H:i" }}–{{ cita.fin|date:"H:i" }}</dd></div>
+      <div><dt class="text-sm text-zinc-400">Duración y total</dt><dd class="mt-1">{{ cita.duracion_minutos }} min · {{ cita.moneda }} {{ cita.precio|floatformat:2 }}</dd></div>
+    </dl>
+    <p class="mt-5 text-sm text-zinc-300">Pago: {{ pago.get_estado_display }}. {{ pago.detalle_actual|texto_reserva }}</p>
+    {% if pago.captura_id %}<p class="mt-2 break-all text-xs text-zinc-400">Referencia de transacción: {{ pago.captura_id }}</p>{% endif %}
+    <p class="mt-2 break-all text-xs text-zinc-400">Reserva: {{ cita.pk }}</p>
+  </section>
+  <section class="mt-6 rounded-2xl border border-zinc-800 p-6">
+    <h2 class="mb-4 text-lg font-semibold">Estado de atención</h2>
+    {% if form.errors %}<div role="alert" class="mb-4 text-sm text-amber-300">{{ form.errors }}</div>{% endif %}
+    {% if opciones %}
+    <form method="post" action="{% url 'reservas:estado' cita.pk %}" class="space-y-4">{% csrf_token %}
+      <div><label for="{{ form.estado.id_for_label }}" class="mb-2 block text-sm">{{ form.estado.label }}</label>{{ form.estado }}</div>
+      <label for="{{ form.confirmar.id_for_label }}" class="flex items-center gap-3 text-sm">{{ form.confirmar }} {{ form.confirmar.label }}</label>
+      <button class="rounded-lg bg-amber-500 px-5 py-2 font-semibold text-zinc-950 hover:bg-amber-400">Actualizar estado</button>
+    </form>
+    {% else %}<p class="text-sm text-zinc-400">No hay cambios de estado disponibles para esta cita. Las citas pagadas se pueden gestionar cuando llegue su hora.</p>{% endif %}
+  </section>
+  {% include "reservas/includes/actividad.html" %}
+</div>
+{% endblock %}

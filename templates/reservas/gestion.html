@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block title %}Gestionar reservas{% endblock %}
+{% block content %}
+<a class="text-sm text-amber-400 underline" href="{% url 'usuarios:panel_admin' %}">Volver al panel</a>
+<h1 class="mb-2 mt-4 text-3xl font-bold">Reservas</h1>
+<p class="mb-6 text-zinc-400">Consulta las citas y gestiona sus estados de atención.</p>
+{% include "reservas/includes/agenda.html" %}
+{% endblock %}

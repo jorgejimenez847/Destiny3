@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Clientes y barberos{% endblock %}
+{% block content %}
+<a class="text-sm text-amber-400 underline" href="{% url 'usuarios:panel_admin' %}">Volver al panel</a>
+<div class="mb-6 mt-4 flex flex-wrap items-center justify-between gap-4"><h1 class="text-3xl font-bold">Clientes y barberos</h1><a class="rounded-lg bg-amber-500 px-4 py-2 font-semibold text-zinc-950" href="{% url 'usuarios:crear' %}">Nueva cuenta</a></div>
+{% include "gestion/filtros.html" %}
+<div class="grid gap-4 md:grid-cols-2">
+{% for cuenta in usuarios %}
+  <article class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+    <p class="text-sm text-amber-400">{{ cuenta.get_rol_display }} · {% if cuenta.is_active %}Activa{% else %}Inactiva{% endif %}</p>
+    <h2 class="mt-2 text-xl font-semibold">{{ cuenta.get_full_name|default:cuenta.username }}</h2>
+    <p class="mt-2 break-all text-sm text-zinc-400">{{ cuenta.username }} · {{ cuenta.email|default:"Sin correo" }}</p>
+    <p class="mt-1 text-sm text-zinc-400">{{ cuenta.telefono|default:"Sin teléfono" }}</p>
+    <div class="mt-4 flex flex-wrap gap-4"><a class="text-amber-400 underline" href="{% url 'usuarios:editar' cuenta.pk %}">Editar cuenta</a><a class="text-amber-400 underline" href="{% url 'reservas:gestion' %}?q={{ cuenta.username|urlencode }}">Consultar citas</a></div>
+  </article>
+{% empty %}<p class="rounded-xl border border-zinc-800 p-6 text-zinc-400">No hay cuentas para los filtros seleccionados.</p>{% endfor %}
+</div>
+{% include "gestion/paginacion.html" %}
+{% endblock %}
