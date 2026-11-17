@@ -57,11 +57,12 @@ class ComprobanteTests(ReservaTestCase):
         respuesta = self.client.get(self.url(cita))
         lector, texto = self.texto_pdf(respuesta)
         self.assertEqual(len(lector.pages), 1)
+        self.assertNotIn("Comprobante de reserva. No es una factura fiscal.", texto)
         for valor in (
             "DESTINY 3", "Comprobante de reserva", cita.numero_comprobante,
             "Ana María Pérez", cita.servicio_nombre, cita.barbero_nombre,
             "07/01/2030", "09:00 - 09:30", "30 minutos", "USD 8.00",
-            "Confirmado", "CAPTURA-TEST", "Fecha de emisión", "No es una factura fiscal",
+            "Confirmado", "CAPTURA-TEST", "Fecha de emisión",
         ):
             with self.subTest(valor=valor):
                 self.assertIn(valor, texto)

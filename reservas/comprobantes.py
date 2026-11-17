@@ -41,7 +41,6 @@ def _pagina(canvas, documento):
     canvas.line(42, 65, ancho - 42, 65)
     canvas.setFillColor(GRIS)
     canvas.setFont("Reserva", 8)
-    canvas.drawString(42, 49, "Comprobante de reserva. No es una factura fiscal.")
     canvas.drawRightString(ancho - 42, 49, str(documento.page))
     canvas.restoreState()
 
