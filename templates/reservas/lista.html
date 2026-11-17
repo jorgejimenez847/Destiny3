@@ -8,7 +8,7 @@
 <div class="grid gap-4 md:grid-cols-2">
 {% for cita in citas %}
   <article class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
-    <p class="text-sm text-amber-400">{{ cita.get_estado_display }}</p>
+    <p class="text-sm text-amber-400">{% if cita.cancelacion_pendiente %}Cancelación en proceso{% else %}{{ cita.get_estado_display }}{% endif %}</p>
     <h2 class="text-xl font-semibold mt-2">{{ cita.servicio_nombre }}</h2>
     <p class="mt-2 text-zinc-400">{{ cita.barbero_nombre }} · {{ cita.inicio|date:"d/m/Y" }} · {{ cita.inicio|date:"H:i" }}–{{ cita.fin|date:"H:i" }}</p>
     <p class="mt-2 text-zinc-400">USD {{ cita.precio|floatformat:2 }}</p>

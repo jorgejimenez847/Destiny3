@@ -21,7 +21,7 @@ def citas_autorizadas(actor):
     if not actor.is_authenticated or not actor.is_active:
         raise PermissionDenied
     consulta = Cita.objects.select_related(
-        "cliente", "barbero__usuario", "pago", "ocupacion"
+        "cliente", "barbero__usuario", "pago", "ocupacion", "cancelacion"
     ).prefetch_related("eventos__actor")
     if actor.rol == "ADMIN":
         return consulta

@@ -1,4 +1,5 @@
 import uuid
+from datetime import timedelta
 from django.conf import settings
 from django.db import models
 from django.db.models import F, Q
@@ -70,21 +71,40 @@ class Cita(models.Model):
         indexes = [models.Index(fields=["estado", "expira_en"])]
 
     @property
+    def cancelacion_pendiente(self):
+        solicitud = getattr(self, "cancelacion", None)
+        return solicitud is not None and solicitud.finalizada_en is None
+
+    @property
     def puede_cancelarse(self):
         try:
             pago = self.pago
         except Pago.DoesNotExist:
             return False
+        if self.cancelacion_pendiente:
+            return False
         ahora = timezone.now()
+        if self.estado == self.Estado.CONFIRMADA:
+            return (
+                self.inicio - ahora >= timedelta(hours=24)
+                and pago.estado == Pago.Estado.COMPLETADO
+                and pago.captura_verificada
+                and not pago.reembolso_id
+                and pago.reembolso_iniciado_en is None
+                and (not pago.procesando_hasta or pago.procesando_hasta <= ahora)
+            )
         return (
             self.estado == self.Estado.PENDIENTE
             and ahora < min(self.expira_en, self.inicio)
             and pago.captura_solicitada_en is None
+            and not pago.captura_id
+            and pago.importe_capturado is None
             and pago.estado
-            not in {
-                Pago.Estado.COMPLETADO,
-                Pago.Estado.REEMBOLSO_PENDIENTE,
-                Pago.Estado.REEMBOLSADO,
+            in {
+                Pago.Estado.NUEVO,
+                Pago.Estado.CREANDO,
+                Pago.Estado.CREADO,
+                Pago.Estado.VERIFICANDO,
             }
         )
 
@@ -165,9 +185,22 @@ class Pago(models.Model):
         max_digits=8, decimal_places=2, null=True, blank=True
     )
     moneda_capturada = models.CharField(max_length=3, blank=True)
+    reembolso_estado = models.CharField(max_length=20, blank=True, editable=False)
+    reembolso_iniciado_en = models.DateTimeField(null=True, blank=True, editable=False)
+    reembolso_finalizado_en = models.DateTimeField(
+        null=True, blank=True, editable=False
+    )
     detalle = models.CharField(max_length=200, blank=True)
     actualizada_en = models.DateTimeField(auto_now=True)
 
+    @property
+    def captura_verificada(self):
+        return bool(
+            self.orden_id
+            and self.captura_id
+            and self.importe_capturado == self.cita.precio
+            and self.moneda_capturada == self.cita.moneda == "USD"
+        )
 
     @property
     def detalle_actual(self):
@@ -177,6 +210,16 @@ class Pago(models.Model):
                 Cita.Estado.EXPIRADA: "El plazo de pago venció sin realizar un cobro.",
             }.get(self.cita.estado, self.detalle)
         return self.detalle
+
+
+class SolicitudCancelacion(models.Model):
+    cita = models.OneToOneField(
+        Cita, on_delete=models.PROTECT, related_name="cancelacion"
+    )
+    solicitante = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    motivo = models.CharField(max_length=180)
+    solicitada_en = models.DateTimeField(default=timezone.now, editable=False)
+    finalizada_en = models.DateTimeField(null=True, blank=True, editable=False)
 
 
 class EventoCita(models.Model):

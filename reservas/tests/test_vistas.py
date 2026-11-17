@@ -168,3 +168,18 @@ class VistasReservaTests(ReservaTestCase):
         )
         self.assertEqual(respuesta.status_code, 302)
         self.assertFalse(Cita.objects.exists())
+
+    def test_servicio_eliminado_despues_del_resumen_no_produce_error_500(self):
+        token = self.seleccion().context["form"].initial["seleccion"]
+        self.servicio.delete()
+        respuesta = self.client.post(reverse("reservas:confirmar"), {"seleccion": token}, follow=True)
+        self.assertContains(respuesta, "El servicio ya no está disponible")
+        self.assertFalse(Cita.objects.exists())
+
+    def test_barbero_retirado_despues_del_resumen_no_produce_error_500(self):
+        token = self.seleccion().context["form"].initial["seleccion"]
+        self.barbero.horario_set.all().delete()
+        self.barbero.delete()
+        respuesta = self.client.post(reverse("reservas:confirmar"), {"seleccion": token}, follow=True)
+        self.assertContains(respuesta, "El barbero ya no está disponible")
+        self.assertFalse(Cita.objects.exists())

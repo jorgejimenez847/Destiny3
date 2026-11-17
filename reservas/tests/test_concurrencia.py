@@ -229,3 +229,69 @@ class ConcurrenciaReservaTests(TransactionTestCase):
             ).count(),
             1,
         )
+
+    def test_cancelaciones_pagadas_simultaneas_crean_una_sola_devolucion(self):
+        from django.db import connection
+        from reservas.models import SolicitudCancelacion
+        cita = self.confirmar_para_atencion()
+        def devolver(pago):
+            self.assertFalse(connection.in_atomic_block)
+            return {"id": "REF-PARALELO", "status": "PENDING",
+                    "amount": {"value": "8.00", "currency_code": "USD"},
+                    "links": [{"rel": "up", "href": "https://api-m.sandbox.paypal.com/v2/payments/captures/CAPTURA-ESTADOS"}]}
+        with patch("reservas.servicios.PayPalClient") as factory:
+            factory._id.side_effect = lambda valor: valor
+            factory.return_value.reembolsar.side_effect = devolver
+            self.paralelo([lambda: cancelar_cita(cita.pk, self.cliente, "Cambio de planes"),
+                           lambda: cancelar_cita(cita.pk, self.cliente, "Otro motivo")])
+            factory.return_value.reembolsar.assert_called_once()
+        cita.refresh_from_db()
+        self.assertEqual(SolicitudCancelacion.objects.filter(cita=cita).count(), 1)
+        self.assertTrue(cita.ocupacion.activa)
+        self.assertEqual(cita.pago.estado, "REEMBOLSO_PENDIENTE")
+        self.assertEqual(cita.eventos.filter(motivo__startswith="Solicitud de cancelación:").count(), 1)
+
+    def test_consultas_de_reembolso_simultaneas_no_duplican_confirmacion(self):
+        from django.db import connection
+        cita = self.confirmar_para_atencion()
+        respuesta = {"id": "REF-PARALELO", "status": "PENDING",
+                     "amount": {"value": "8.00", "currency_code": "USD"},
+                     "links": [{"rel": "up", "href": "https://api-m.sandbox.paypal.com/v2/payments/captures/CAPTURA-ESTADOS"}]}
+        with patch("reservas.servicios.PayPalClient") as factory:
+            factory._id.side_effect = lambda valor: valor
+            api = factory.return_value
+            api.reembolsar.return_value = respuesta
+            cancelar_cita(cita.pk, self.cliente, "Cambio de planes")
+            def consultar(referencia):
+                self.assertFalse(connection.in_atomic_block)
+                return respuesta | {"status": "COMPLETED"}
+            api.consultar_reembolso.side_effect = consultar
+            self.paralelo([lambda: procesar_pago(cita.pk), lambda: procesar_pago(cita.pk)])
+            api.consultar_reembolso.assert_called_once()
+            api.reembolsar.assert_called_once()
+        cita.refresh_from_db()
+        self.assertEqual(cita.estado, "CANCELADA")
+        self.assertFalse(cita.ocupacion.activa)
+        self.assertEqual(cita.eventos.filter(nuevo="CANCELADA").count(), 1)
+
+    def test_cancelacion_pendiente_impide_otra_reserva_y_se_libera_tras_el_reembolso(self):
+        cita = self.confirmar_para_atencion()
+        respuesta = {"id": "REF-AGENDA", "status": "PENDING",
+                     "amount": {"value": "8.00", "currency_code": "USD"},
+                     "links": [{"rel": "up", "href": "https://api-m.sandbox.paypal.com/v2/payments/captures/CAPTURA-ESTADOS"}]}
+        with patch("reservas.servicios.PayPalClient") as factory:
+            factory._id.side_effect = lambda valor: valor
+            factory.return_value.reembolsar.return_value = respuesta
+            cancelar_cita(cita.pk, self.cliente, "Cambio de planes")
+            def intentar():
+                try:
+                    self.reservar(self.otro)
+                except ValidationError:
+                    return "ocupado"
+                return "reservado"
+            self.assertEqual(self.paralelo([intentar, intentar]), ["ocupado", "ocupado"])
+            factory.return_value.consultar_reembolso.return_value = respuesta | {"status": "COMPLETED"}
+            procesar_pago(cita.pk)
+        nueva = self.reservar(self.otro)
+        self.assertNotEqual(nueva.pk, cita.pk)
+        self.assertTrue(nueva.ocupacion.activa)

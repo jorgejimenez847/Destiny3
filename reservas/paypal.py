@@ -172,6 +172,37 @@ class PayPalClient:
             request_id=pago.solicitud_reembolsar,
         )
 
+    def consultar_reembolso(self, referencia):
+        return self._solicitar("GET", "/v2/payments/refunds/" + self._id(referencia))
+
+    def buscar_reembolso(self, pago):
+        orden = self.consultar(pago.orden_id)
+        try:
+            unidades = orden["purchase_units"]
+            unidad = unidades[0]
+            pagos = unidad["payments"]
+            capturas = pagos["captures"]
+            devoluciones = pagos.get("refunds", [])
+            valida = (
+                orden["id"] == pago.orden_id
+                and len(unidades) == 1
+                and unidad["reference_id"] == str(pago.cita_id)
+                and unidad["custom_id"] == str(pago.cita_id)
+                and len(capturas) == 1
+                and capturas[0]["id"] == pago.captura_id
+                and isinstance(devoluciones, list)
+                and len(devoluciones) <= 1
+            )
+            if not valida:
+                raise PayPalError()
+            if devoluciones:
+                return self.consultar_reembolso(devoluciones[0]["id"])
+            if capturas[0]["status"] in ("REFUNDED", "PARTIALLY_REFUNDED"):
+                raise PayPalError()
+        except (KeyError, IndexError, TypeError, AttributeError):
+            raise PayPalError() from None
+        return None
+
 
 def enlace_aprobacion(orden):
     links = orden.get("links", []) if isinstance(orden, dict) else []

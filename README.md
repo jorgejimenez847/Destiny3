@@ -12,10 +12,10 @@ Python 3.12/3.13, Django 5.2, PostgreSQL 16 y Tailwind CSS Standalone.
 - Fase 2: perfiles de barberos, servicios asignados, turnos, descansos, ausencias y días bloqueados.
 - Fase 3: disponibilidad calculada y prevención de solapamientos en servidor y PostgreSQL.
 - Fase 4: selección, resumen, retención temporal, pago PayPal Sandbox, confirmación y transiciones de estado.
-- Fase 5: historial del cliente, cancelación de reservas pendientes y comprobantes de reserva en PDF.
+- Fase 5: historial del cliente, cancelación de reservas según la política de anticipación y comprobantes de reserva en PDF.
 - Fase 6: agenda del barbero, gestión administrativa de reservas, cuentas y servicios, e indicadores del dashboard.
 
-El cliente consulta sus propias reservas y descarga sus comprobantes. El barbero consulta su agenda y actualiza la atención de sus citas; el administrador gestiona reservas, cuentas, servicios, perfiles y horarios. La cancelación por el cliente está disponible solo mientras el pago siga pendiente y no haya comenzado su verificación. La cancelación de citas pagadas queda pendiente de definir.
+El cliente consulta sus propias reservas y descarga sus comprobantes. El barbero consulta su agenda y actualiza la atención de sus citas; el administrador gestiona reservas, cuentas, servicios, perfiles y horarios. El cliente puede cancelar una reserva pendiente antes de iniciar la captura del pago, o una cita confirmada con al menos 24 horas de anticipación. En citas pagadas, la cancelación y la liberación del horario se completan al confirmar la devolución por PayPal.
 
 ## Instalación
 
@@ -102,7 +102,7 @@ python manage.py procesar_retenciones
 
 La disponibilidad descuenta duración real, turnos, descansos, bloqueos y ocupaciones activas. Dos intervalos adyacentes son válidos; los intervalos superpuestos se rechazan mediante transacciones y una exclusión GiST de PostgreSQL.
 
-Cancelar antes de la captura o dejar vencer la retención libera el horario. Si una captura queda incierta por una desconexión, el intervalo permanece protegido hasta conocer el resultado; no se cobra otra vez ni se libera un posible pago. Los reintentos utilizan los mismos identificadores de PayPal. Un pago tardío que no pueda confirmar su cita se devuelve en Sandbox, sin afectar una reserva nueva. Si PayPal está caído, la verificación o devolución queda pendiente y se reintenta.
+Cancelar antes de la captura o dejar vencer la retención libera el horario. Para cancelar una cita pagada se requiere un motivo y un mínimo de 24 horas de anticipación; mientras el reembolso esté pendiente, el horario permanece protegido y la cita no admite cambios de atención. Si una captura queda incierta por una desconexión, el intervalo permanece protegido hasta conocer el resultado; no se cobra otra vez ni se libera un posible pago. Los reintentos utilizan los mismos identificadores de PayPal. Un pago tardío que no pueda confirmar su cita se devuelve en Sandbox, sin afectar una reserva nueva. Si PayPal está caído, la verificación o devolución queda pendiente y se reintenta.
 
 El administrador o el barbero asignado pueden actualizar la atención cuando llegue la hora de una cita pagada: Confirmada → En atención → Completada, o Confirmada → No asistió. La recuperación de contraseña usa correo por consola en desarrollo.
 

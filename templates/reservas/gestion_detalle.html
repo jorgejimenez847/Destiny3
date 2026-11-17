@@ -5,7 +5,7 @@
 <div class="mx-auto max-w-3xl">
   <a class="text-sm text-amber-400 underline" href="{% if user.rol == 'ADMIN' %}{% url 'reservas:gestion' %}{% else %}{% url 'usuarios:panel_barbero' %}{% endif %}">Volver a la agenda</a>
   <section class="mt-5 rounded-2xl border border-zinc-800 bg-zinc-900 p-6 md:p-8">
-    <p class="text-sm text-amber-400">{{ cita.get_estado_display }}</p>
+    <p class="text-sm text-amber-400">{% if cita.cancelacion_pendiente %}Cancelación en proceso{% else %}{{ cita.get_estado_display }}{% endif %}</p>
     <h1 class="mt-2 text-3xl font-bold">{{ cita.servicio_nombre }}</h1>
     <dl class="mt-6 grid gap-5 sm:grid-cols-2">
       <div><dt class="text-sm text-zinc-400">Cliente</dt><dd class="mt-1">{{ cita.cliente_nombre|default:cita.cliente.username }}</dd></div>
@@ -13,6 +13,8 @@
       <div><dt class="text-sm text-zinc-400">Fecha y horario</dt><dd class="mt-1">{{ cita.inicio|date:"d/m/Y" }} · {{ cita.inicio|date:"H:i" }}–{{ cita.fin|date:"H:i" }}</dd></div>
       <div><dt class="text-sm text-zinc-400">Duración y total</dt><dd class="mt-1">{{ cita.duracion_minutos }} min · {{ cita.moneda }} {{ cita.precio|floatformat:2 }}</dd></div>
     </dl>
+    {% if cita.cancelacion_pendiente %}<p role="status" class="mt-5 text-amber-400">Hay una cancelación pendiente de reembolso. La cita no admite cambios de atención y conserva su horario.</p>{% endif %}
+    {% if pago.reembolso_id %}<p class="mt-3 break-all text-xs text-zinc-400">Referencia de reembolso: {{ pago.reembolso_id }}</p>{% endif %}
     <p class="mt-5 text-sm text-zinc-300">Pago: {{ pago.get_estado_display }}. {{ pago.detalle_actual|texto_reserva }}</p>
     {% if pago.captura_id %}<p class="mt-2 break-all text-xs text-zinc-400">Referencia de transacción: {{ pago.captura_id }}</p>{% endif %}
     <p class="mt-2 break-all text-xs text-zinc-400">Reserva: {{ cita.pk }}</p>

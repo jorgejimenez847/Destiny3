@@ -59,3 +59,10 @@ class ReservaTestCase(AgendaTestCase):
         pago.receptor_id = "RECEPTOR-TEST"
         pago.save()
         return cita
+
+    def reembolso(self, estado="COMPLETED", importe="8.00", referencia="REEMBOLSO-TEST", captura="CAPTURA-TEST"):
+        return {
+            "id": referencia, "status": estado,
+            "amount": {"value": importe, "currency_code": "USD"},
+            "links": [{"rel": "up", "href": "https://api-m.sandbox.paypal.com/v2/payments/captures/" + captura}],
+        }

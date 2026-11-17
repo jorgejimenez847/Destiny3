@@ -60,3 +60,36 @@ class ClientePayPalTests(SimpleTestCase):
     def test_rechaza_referencia_con_traversal(self):
         with self.assertRaises(PayPalError):
             PayPalClient().consultar("../otra-ruta")
+
+    def test_reembolso_total_usa_identificador_estable_y_consulta_por_id(self):
+        from types import SimpleNamespace
+        import uuid
+        pago = SimpleNamespace(captura_id="CAPTURA-TEST", solicitud_reembolsar=uuid.uuid4())
+        with patch.object(PayPalClient, "_solicitar", return_value={}) as solicitar:
+            api = PayPalClient()
+            api.reembolsar(pago)
+            solicitar.assert_called_with("POST", "/v2/payments/captures/CAPTURA-TEST/refund", data={}, request_id=pago.solicitud_reembolsar)
+            api.consultar_reembolso("REF-TEST")
+            solicitar.assert_called_with("GET", "/v2/payments/refunds/REF-TEST")
+        with self.assertRaises(PayPalError):
+            PayPalClient().consultar_reembolso("../otra-ruta")
+
+    def test_recupera_referencia_de_reembolso_desde_la_orden(self):
+        from types import SimpleNamespace
+        pago = SimpleNamespace(orden_id="ORDEN-TEST", captura_id="CAPTURA-TEST", cita_id="CITA-TEST")
+        unidad = {"reference_id": "CITA-TEST", "custom_id": "CITA-TEST",
+                  "payments": {"captures": [{"id": "CAPTURA-TEST", "status": "REFUNDED"}], "refunds": [{"id": "REF-TEST"}]}}
+        orden = {"id": "ORDEN-TEST", "purchase_units": [unidad]}
+        with patch.object(PayPalClient, "consultar", return_value=orden), patch.object(PayPalClient, "consultar_reembolso", return_value={"status": "COMPLETED"}) as consultar:
+            self.assertEqual(PayPalClient().buscar_reembolso(pago), {"status": "COMPLETED"})
+            consultar.assert_called_once_with("REF-TEST")
+
+    def test_orden_invalida_o_reembolsada_sin_referencia_no_autoriza_otro_post(self):
+        from types import SimpleNamespace
+        pago = SimpleNamespace(orden_id="ORDEN-TEST", captura_id="CAPTURA-TEST", cita_id="CITA-TEST")
+        unidad = {"reference_id": "CITA-TEST", "custom_id": "CITA-TEST",
+                  "payments": {"captures": [{"id": "CAPTURA-TEST", "status": "REFUNDED"}]}}
+        orden = {"id": "ORDEN-TEST", "purchase_units": [unidad]}
+        for dato in (None, {}, {"purchase_units": []}, orden, orden | {"id": "AJENA"}):
+            with self.subTest(dato=dato), patch.object(PayPalClient, "consultar", return_value=dato), self.assertRaises(PayPalError):
+                PayPalClient().buscar_reembolso(pago)

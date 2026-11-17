@@ -310,10 +310,10 @@ class GestionReservaTests(ReservaTestCase):
         self.assertEqual(evento.actor, self.cliente)
         self.assertGreaterEqual(evento.fecha, antes)
 
-    def test_no_cancela_pagadas_ni_inicia_reembolso(self):
+    def test_no_cancela_pagadas_sin_24_horas_ni_inicia_reembolso(self):
         cita = self.confirmar_pago(self.reservar())
         self.client.force_login(self.cliente)
-        with patch("reservas.paypal.requests.Session") as paypal:
+        with patch("reservas.paypal.requests.Session") as paypal, hora_operativa(cita.inicio - timedelta(hours=23)):
             self.assertEqual(
                 self.client.post(
                     reverse("reservas:cancelar", args=[cita.pk]),

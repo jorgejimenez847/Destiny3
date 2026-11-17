@@ -163,10 +163,7 @@ class PagoTests(ReservaTestCase):
             factory._id.side_effect = lambda x: x
             api = factory.return_value
             api.consultar.return_value = self.orden(cita, "COMPLETED", self.captura())
-            api.reembolsar.return_value = {
-                "id": "REEMBOLSO-TEST",
-                "status": "COMPLETED",
-            }
+            api.reembolsar.return_value = self.reembolso()
             procesar_pago(cita.pk)
         cita.refresh_from_db()
         nueva.refresh_from_db()
@@ -182,10 +179,7 @@ class PagoTests(ReservaTestCase):
             api.consultar.return_value = self.orden(
                 cita, "COMPLETED", self.captura(importe="1.00")
             )
-            api.reembolsar.return_value = {
-                "id": "REEMBOLSO-TEST",
-                "status": "COMPLETED",
-            }
+            api.reembolsar.return_value = self.reembolso(importe="1.00")
             procesar_pago(cita.pk)
         cita.refresh_from_db()
         self.assertEqual(cita.estado, Cita.Estado.PAGO_FALLIDO)
@@ -231,10 +225,7 @@ class PagoTests(ReservaTestCase):
             factory._id.side_effect = lambda x: x
             api = factory.return_value
             api.consultar.return_value = self.orden(cita, "COMPLETED", self.captura())
-            api.reembolsar.return_value = {
-                "id": "REEMBOLSO-TEST",
-                "status": "COMPLETED",
-            }
+            api.reembolsar.return_value = self.reembolso()
             procesar_pago(cita.pk)
         cita.refresh_from_db()
         self.assertEqual(cita.estado, Cita.Estado.PAGO_FALLIDO)

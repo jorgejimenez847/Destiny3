@@ -13,7 +13,7 @@
       <td class="px-4 py-4">{{ cita.cliente_nombre|default:cita.cliente.username }}</td>
       <td class="px-4 py-4">{{ cita.servicio_nombre }}<span class="mt-1 block text-zinc-400">{{ cita.duracion_minutos }} min</span></td>
       {% if administrador %}<td class="px-4 py-4">{{ cita.barbero_nombre }}</td>{% endif %}
-      <td class="px-4 py-4 text-amber-400">{{ cita.get_estado_display }}</td>
+      <td class="px-4 py-4 text-amber-400">{% if cita.cancelacion_pendiente %}Cancelación en proceso{% else %}{{ cita.get_estado_display }}{% endif %}</td>
       <td class="whitespace-nowrap px-4 py-4">{{ cita.moneda }} {{ cita.precio|floatformat:2 }}</td>
       <td class="px-4 py-4"><a class="whitespace-nowrap text-amber-400 underline" href="{% url 'reservas:gestion_detalle' cita.pk %}">Ver cita</a></td>
     </tr>

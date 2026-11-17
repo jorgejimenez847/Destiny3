@@ -30,7 +30,7 @@ SALT = "reservas.seleccion"
 
 def _propia(request, pk):
     return get_object_or_404(
-        Cita.objects.select_related("pago", "ocupacion").prefetch_related("eventos"),
+        Cita.objects.select_related("pago", "ocupacion", "cancelacion").prefetch_related("eventos"),
         pk=pk,
         cliente=request.user,
     )
@@ -41,7 +41,7 @@ def _propia(request, pk):
 def lista(request):
     consulta = (
         Cita.objects.filter(cliente=request.user)
-        .select_related("pago")
+        .select_related("pago", "ocupacion", "cancelacion")
         .prefetch_related("eventos")
     )
     pagina = Paginator(consulta, 20).get_page(request.GET.get("pagina"))
@@ -202,6 +202,8 @@ def cancelar(request, pk):
         cita = cancelar_cita(pk, request.user, form.cleaned_data["motivo"])
         if cita.estado == Cita.Estado.EXPIRADA:
             messages.info(request, "El plazo de pago venció y el horario quedó libre.")
+        elif cita.cancelacion_pendiente:
+            messages.info(request, "Solicitud recibida. La cancelación se completará cuando PayPal confirme el reembolso.")
         else:
             messages.success(request, "La reserva se canceló y su horario quedó libre.")
     except ValidationError as exc:
